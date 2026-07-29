@@ -1,0 +1,128 @@
+            <section id="view-home" class="view-page animate-fadeIn space-y-12 pb-16">
+                <!-- HERO BANNER -->
+                <div class="relative bg-gradient-to-r from-rose-900 via-brand-800 to-rose-700 text-white overflow-hidden">
+                    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 relative z-10">
+                        <div class="grid md:grid-cols-2 gap-8 items-center">
+                            <div class="space-y-6 text-center md:text-left">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/20 text-rose-100 backdrop-blur-sm border border-white/20">
+                                    <i class="fa-solid fa-certificate text-amber-300"></i> 100% Produk Original & BPOM
+                                </span>
+                                <h1 class="text-3xl sm:text-5xl font-black leading-tight tracking-tight">
+                                    Belanja Skincare & Kosmetik Original dengan Mudah.
+                                </h1>
+                                <p class="text-rose-100 text-base sm:text-lg max-w-xl font-normal leading-relaxed">
+                                    Pesan Online, Bayar Praktis Pakai QRIS DANA, dan Ambil Pesanan Tanpa Antre di Toko YN Shop!
+                                </p>
+                                <div class="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
+                                    <button onclick="navigateTo('products')" class="px-7 py-3.5 rounded-full bg-white text-brand-700 font-bold text-sm shadow-xl hover:bg-rose-50 hover:scale-105 transition-all flex items-center gap-2">
+                                        <i class="fa-solid fa-bag-shopping"></i> Belanja Sekarang
+                                    </button>
+                                    <button onclick="navigateTo('how-to-order')" class="px-6 py-3.5 rounded-full bg-brand-900/50 hover:bg-brand-900 text-white font-semibold text-sm border border-white/20 transition flex items-center gap-2">
+                                        <i class="fa-circle-play far"></i> Cara Pick Up
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="relative flex justify-center">
+                                <div class="w-full max-w-md bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 shadow-2xl relative">
+                                    <div class="absolute -top-4 -right-4 bg-amber-400 text-slate-900 text-xs font-black px-3 py-1.5 rounded-full shadow-lg transform rotate-6">
+                                        ⚡ Fast Store Pick Up
+                                    </div>
+                                    <img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop&q=80" alt="Cosmetics showcase" class="w-full h-64 sm:h-72 object-cover rounded-2xl shadow-inner">
+                                    <div class="mt-4 bg-white/90 backdrop-blur text-slate-800 p-3.5 rounded-xl flex items-center justify-between text-xs font-semibold">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
+                                                <i class="fa-solid fa-qrcode"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-bold text-slate-900">QRIS Instant Payment</p>
+                                                <p class="text-[10px] text-slate-500">Verifikasi Cepat & Aman</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-brand-600 font-bold bg-brand-50 px-2 py-1 rounded">DANA / QRIS</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CATEGORY HIGHLIGHT -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Kategori Pilihan</h2>
+                            <p class="text-xs sm:text-sm text-slate-500">Temukan kebutuhan kecantikan Anda berdasarkan kategori</p>
+                        </div>
+                    </div>
+                    <div id="landing-categories-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                        <!-- Dynamic rendered -->
+                    </div>
+                </div>
+
+                <!-- PROMO BANNER -->
+                <div id="promo" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="bg-gradient-to-r from-amber-500 to-rose-500 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div class="space-y-2 z-10 text-center md:text-left">
+                            <span class="bg-black/20 text-amber-100 text-[11px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">Promo Hari Ini</span>
+                            <h3 class="text-2xl sm:text-3xl font-extrabold">Diskon Hingga 30% Skincare Brand Top!</h3>
+                            <p class="text-amber-100 text-xs sm:text-sm max-w-lg">Pesan hari ini melalui YN Shop Online, pilih jam pick up toko, dan klaim diskon eksklusif!</p>
+                        </div>
+                        <button onclick="navigateTo('products')" class="z-10 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-full shadow-md whitespace-nowrap transition">
+                            Lihat Semua Promo <i class="fa-solid fa-arrow-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BESTSELLERS -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Produk Terlaris 🔥</h2>
+                            <p class="text-xs sm:text-sm text-slate-500">Favorit pelanggan YN Shop bulan ini</p>
+                        </div>
+                        <a href="javascript:void(0)" onclick="navigateTo('products')" class="text-xs sm:text-sm font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                            Lihat Semua <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </a>
+                    </div>
+                    <div id="bestseller-products-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                        <!-- Dynamic rendered -->
+                    </div>
+                </div>
+
+                <!-- STORE LOCATION & OPERATIONAL HOURS -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-10 grid md:grid-cols-2 gap-8 items-center shadow-xl">
+                        <div class="space-y-4">
+                            <span class="text-brand-400 text-xs font-bold uppercase tracking-wider"><i class="fa-solid fa-location-dot me-1"></i> Outlet Pick Up YN Shop</span>
+                            <h3 class="text-2xl sm:text-3xl font-extrabold">Kunjungi Toko Fisik Kami</h3>
+                            <p class="text-slate-300 text-xs sm:text-sm leading-relaxed">
+                                Jl. Mawar Indah No. 45, Kebayoran, Jakarta Selatan (Samping BCA Branch Office).
+                            </p>
+                            <div class="space-y-2 text-xs text-slate-300 pt-2">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-clock text-rose-400 w-5"></i>
+                                    <span><strong>Jam Store Pick Up:</strong> Senin - Minggu (07.00 - 20.00 WIB)</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-brands fa-whatsapp text-emerald-400 w-5"></i>
+                                    <span><strong>WhatsApp Store:</strong> +62 812-3456-7890</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 h-64 flex flex-col justify-between relative overflow-hidden">
+                            <div class="absolute inset-0 bg-cover bg-center opacity-40" style="background-image: url('https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&auto=format&fit=crop&q=80')"></div>
+                            <div class="relative z-10 bg-slate-900/80 p-3 rounded-xl backdrop-blur-sm border border-slate-700">
+                                <p class="text-xs font-bold text-white"><i class="fa-solid fa-store text-brand-400 me-2"></i>YN Shop Central Store</p>
+                                <p class="text-[11px] text-slate-300">Siap Melayani Pengambilan Pesanan Anda</p>
+                            </div>
+                            <div class="relative z-10 flex justify-end">
+                                <a href="https://maps.google.com" target="_blank" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow">
+                                    <i class="fa-solid fa-diamond-turn-right"></i> Petunjuk Jalan
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
