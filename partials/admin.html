@@ -1,0 +1,173 @@
+        <main id="admin-main-view" class="flex-1 hidden bg-slate-900 text-slate-100 pb-16">
+            <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 sticky top-[33px] z-40">
+                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500 text-slate-900 font-black flex items-center justify-center text-lg shadow">
+                            AP
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-white leading-none">YN Shop Admin Dashboard</h1>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Sistem Pengelolaan Pesanan Pick Up & QRIS Verification</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <button onclick="switchAdminTab('dashboard')" id="adm-tab-dash" class="px-3 py-1.5 rounded-lg bg-slate-700 text-white font-bold">
+                            <i class="fa-solid fa-chart-line me-1"></i> Dashboard
+                        </button>
+                        <button onclick="switchAdminTab('orders')" id="adm-tab-orders" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-receipt me-1"></i> Verifikasi Pesanan
+                        </button>
+                        <button onclick="switchAdminTab('products')" id="adm-tab-products" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-boxes-stacked me-1"></i> Produk Catalog
+                        </button>
+                        <button onclick="switchToViewMode('customer')" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700">
+                            <i class="fa-solid fa-store me-1"></i> Ke Toko Customer
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+                
+                <!-- ADMIN TAB 1: DASHBOARD ANALYTICS -->
+                <div id="admin-subview-dashboard" class="space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Total Penjualan</p>
+                            <p id="adm-stat-sales" class="text-xl font-black text-emerald-400 mt-1">Rp 0</p>
+                        </div>
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Perlu Verifikasi QRIS</p>
+                            <p id="adm-stat-pending" class="text-xl font-black text-amber-400 mt-1">0</p>
+                        </div>
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Siap Diambil di Toko</p>
+                            <p id="adm-stat-ready" class="text-xl font-black text-blue-400 mt-1">0</p>
+                        </div>
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Total Produk Aktif</p>
+                            <p id="adm-stat-products" class="text-xl font-black text-rose-400 mt-1">0</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-area text-emerald-400 me-2"></i>Grafik Penjualan Mingguan</h3>
+                        <div class="h-64">
+                            <canvas id="adminSalesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMIN TAB 2: ORDERS VERIFICATION & STATUS -->
+                <div id="admin-subview-orders" class="hidden space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-white">Kelola Transaksi & Verifikasi Bukti QRIS</h2>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-3.5">ID / Tanggal</th>
+                                        <th class="p-3.5">Pemesan & No WA</th>
+                                        <th class="p-3.5">Slot Pick Up</th>
+                                        <th class="p-3.5">Total</th>
+                                        <th class="p-3.5">Bukti QRIS</th>
+                                        <th class="p-3.5">Status</th>
+                                        <th class="p-3.5 text-right">Aksi Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-orders-tbody" class="divide-y divide-slate-700">
+                                    <!-- Dynamic rendered admin orders -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMIN TAB 3: PRODUCTS CRUD -->
+                <div id="admin-subview-products" class="hidden space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-white">Manajemen Katalog Produk</h2>
+                        <button onclick="openAddProductModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Tambah Produk Baru
+                        </button>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-3.5">Produk</th>
+                                        <th class="p-3.5">Brand & Kategori</th>
+                                        <th class="p-3.5">Harga</th>
+                                        <th class="p-3.5">Stok</th>
+                                        <th class="p-3.5 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-products-tbody" class="divide-y divide-slate-700">
+                                    <!-- Dynamic products table -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- MODAL: TAMBAH / EDIT PRODUK (CRUD Create & Update) -->
+        <div id="product-form-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn">
+                <button onclick="closeProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div class="p-6 space-y-4">
+                    <h3 id="product-form-title" class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Tambah Produk Baru</h3>
+                    <form id="product-form" onsubmit="saveProduct(event)" class="space-y-3">
+                        <input type="hidden" id="product-form-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Produk</label>
+                            <input type="text" id="product-form-name" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Brand</label>
+                                <input type="text" id="product-form-brand" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+                                <input type="text" id="product-form-category" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="Moisturizer, Serum, dll">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Jual (Rp)</label>
+                                <input type="number" id="product-form-price" required min="0" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Coret (Opsional)</label>
+                                <input type="number" id="product-form-original-price" min="0" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">URL Gambar Produk</label>
+                            <input type="url" id="product-form-image" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="https://...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Deskripsi</label>
+                            <textarea id="product-form-description" rows="3" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition">
+                            Simpan Produk
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: PREVIEW BUKTI PEMBAYARAN -->
+        <div id="proof-preview-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn">
+                <button onclick="closeProofModal()" class="absolute top-3 right-3 bg-white/90 text-slate-600 hover:text-slate-900 p-1.5 rounded-full z-10"><i class="fa-solid fa-xmark"></i></button>
+                <img id="proof-preview-image" src="" alt="Bukti Pembayaran" class="w-full h-auto object-contain">
+            </div>
+        </div>

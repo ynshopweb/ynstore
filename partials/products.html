@@ -1,0 +1,60 @@
+            <section id="view-products" class="view-page hidden animate-fadeIn max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900">Daftar Produk Skincare & Kosmetik</h1>
+                    <p class="text-xs sm:text-sm text-slate-500">Pilih produk favorit, pesan online, bayar QRIS, dan ambil di toko YN Shop.</p>
+                </div>
+
+                <div class="grid lg:grid-cols-4 gap-6 items-start">
+                    <!-- FILTER SIDEBAR -->
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+                        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-brand-600"></i> Filter Produk
+                            </h3>
+                            <button onclick="resetFilters()" class="text-xs font-semibold text-rose-600 hover:underline">Reset</button>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Brand</label>
+                            <div id="filter-brand-options" class="space-y-1.5 max-h-40 overflow-y-auto pr-1"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Kategori</label>
+                            <div id="filter-category-options" class="space-y-1.5 max-h-40 overflow-y-auto pr-1"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Maksimal Harga</label>
+                            <input type="range" id="filter-price-range" min="10000" max="500000" step="10000" value="500000" oninput="updatePriceLabel(this.value)" class="w-full accent-brand-600">
+                            <div class="flex justify-between text-xs font-semibold text-slate-600 mt-1">
+                                <span>Rp 10rb</span>
+                                <span id="filter-price-val" class="text-brand-600 font-bold">Rp 500.000</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Urutkan</label>
+                            <select id="filter-sort-by" onchange="applyProductFilters()" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-lg p-2.5 outline-none font-medium">
+                                <option value="latest">Terbaru</option>
+                                <option value="bestseller">Terlaris</option>
+                                <option value="price-low">Harga: Rendah ke Tinggi</option>
+                                <option value="price-high">Harga: Tinggi ke Rendah</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- PRODUCT CATALOG GRID -->
+                    <div class="lg:col-span-3 space-y-4">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-500">Menampilkan:</span>
+                                <span id="catalog-count-label" class="font-bold text-slate-900">0 Produk</span>
+                            </div>
+                            <input type="text" id="catalog-search-input" onkeyup="applyProductFilters()" placeholder="Cari di katalog..." class="bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:bg-white focus:border-brand-500">
+                        </div>
+
+                        <div id="catalog-products-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6"></div>
+                    </div>
+                </div>
+            </section>
