@@ -1,0 +1,30 @@
+            <section id="view-order-tracker" class="view-page hidden animate-fadeIn max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+                <div class="flex flex-wrap justify-between items-center gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                        <span class="text-xs text-slate-400 font-medium">Lacak Pesanan Store Pick Up</span>
+                        <h1 class="text-2xl font-extrabold text-slate-900" id="tracker-order-id">-</h1>
+                    </div>
+                    <button onclick="navigateTo('customer-profile')" class="text-xs font-bold text-brand-600 hover:underline">
+                        <i class="fa-solid fa-list-check me-1"></i> Kembali ke Profil & Pesanan
+                    </button>
+                </div>
+
+                <div id="tracker-status-card" class="bg-gradient-to-r from-amber-500 to-amber-600 text-white p-6 rounded-3xl shadow-md space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span id="tracker-status-badge" class="px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider">Menunggu Verifikasi</span>
+                        <span id="tracker-order-date" class="text-xs text-amber-100">-</span>
+                    </div>
+                    <h2 id="tracker-status-title" class="text-xl font-bold">Bukti Pembayaran Dalam Proses</h2>
+                    <p id="tracker-status-desc" class="text-xs text-amber-100">Admin YN Shop sedang memverifikasi pembayaran Anda.</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                    <h3 class="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">Rincian Informasi Pengambilan</h3>
+                    <div class="grid sm:grid-cols-2 gap-4 text-xs">
+                        <p><strong>Tanggal Pick Up:</strong> <span id="tracker-pickup-date-val">-</span></p>
+                        <p><strong>Jam Pick Up:</strong> <span id="tracker-pickup-time-val">-</span></p>
+                        <p><strong>Lokasi Store:</strong> YN Shop Central Store (Kebayoran)</p>
+                        <p><strong>Total Tagihan:</strong> <span id="tracker-total-amount" class="font-bold text-brand-600">Rp 0</span></p>
+                    </div>
+                </div>
+            </section>
