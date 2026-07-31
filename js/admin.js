@@ -1,224 +1,245 @@
-// ============================================================
-// ADMIN MODULE
-// Dashboard analitik, verifikasi pesanan, dan CRUD produk
-// (Create, Read, Update, Delete) untuk panel admin.
-//
-// CATATAN PERBAIKAN dari file asli:
-// - `openAddProductModal()` dipanggil di HTML tapi tidak pernah
-//   didefinisikan -> sekarang diimplementasikan lengkap dengan
-//   modal tambah/edit produk (saveProduct, editProduct, closeProductModal).
-// - `viewProofModal()` dipanggil di tabel pesanan tapi tidak pernah
-//   didefinisikan -> sekarang diimplementasikan sebagai modal
-//   preview foto bukti transfer.
-// ============================================================
-import { doc, addDoc, updateDoc, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { db, appId } from './config.js';
-import { state } from './state.js';
+        <main id="admin-main-view" class="flex-1 hidden bg-slate-900 text-slate-100 pb-16">
+            <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 sticky top-[33px] z-40">
+                <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-emerald-500 text-slate-900 font-black flex items-center justify-center text-lg shadow">
+                            AP
+                        </div>
+                        <div>
+                            <h1 class="text-lg font-bold text-white leading-none">YN Shop Admin Dashboard</h1>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Sistem Pengelolaan Pesanan Pick Up & QRIS Verification</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <button onclick="switchAdminTab('dashboard')" id="adm-tab-dash" class="px-3 py-1.5 rounded-lg bg-slate-700 text-white font-bold">
+                            <i class="fa-solid fa-chart-line me-1"></i> Dashboard
+                        </button>
+                        <button onclick="switchAdminTab('orders')" id="adm-tab-orders" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-receipt me-1"></i> Verifikasi Pesanan
+                        </button>
+                        <button onclick="switchAdminTab('products')" id="adm-tab-products" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-boxes-stacked me-1"></i> Produk Catalog
+                        </button>
+                        <button onclick="switchAdminTab('settings')" id="adm-tab-settings" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-gear me-1"></i> Pengaturan
+                        </button>
+                        <button onclick="switchToViewMode('customer')" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700">
+                            <i class="fa-solid fa-store me-1"></i> Ke Toko Customer
+                        </button>
+                    </div>
+                </div>
+            </header>
 
-window.switchAdminTab = function(tab) {
-    document.getElementById('admin-subview-dashboard').classList.add('hidden');
-    document.getElementById('admin-subview-orders').classList.add('hidden');
-    document.getElementById('admin-subview-products').classList.add('hidden');
-    document.getElementById('admin-subview-settings').classList.add('hidden');
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+                
+                <!-- ADMIN TAB 1: DASHBOARD ANALYTICS -->
+                <div id="admin-subview-dashboard" class="space-y-6">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Total Penjualan</p>
+                            <p id="adm-stat-sales" class="text-xl font-black text-emerald-400 mt-1">Rp 0</p>
+                        </div>
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Perlu Verifikasi QRIS</p>
+                            <p id="adm-stat-pending" class="text-xl font-black text-amber-400 mt-1">0</p>
+                        </div>
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Siap Diambil di Toko</p>
+                            <p id="adm-stat-ready" class="text-xl font-black text-blue-400 mt-1">0</p>
+                        </div>
+                        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                            <p class="text-xs text-slate-400">Total Produk Aktif</p>
+                            <p id="adm-stat-products" class="text-xl font-black text-rose-400 mt-1">0</p>
+                        </div>
+                    </div>
 
-    document.getElementById(`admin-subview-${tab}`).classList.remove('hidden');
+                    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700">
+                        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-area text-emerald-400 me-2"></i>Grafik Penjualan Mingguan</h3>
+                        <div class="h-64">
+                            <canvas id="adminSalesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
 
-    ['dash', 'orders', 'products', 'settings'].forEach(t => {
-        const btn = document.getElementById(`adm-tab-${t}`);
-        if (btn) btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700';
-    });
-    const activeKey = tab === 'dashboard' ? 'dash' : tab;
-    const activeBtn = document.getElementById(`adm-tab-${activeKey}`);
-    if (activeBtn) activeBtn.className = 'px-3 py-1.5 rounded-lg bg-slate-700 text-white font-bold';
+                <!-- ADMIN TAB 2: ORDERS VERIFICATION & STATUS -->
+                <div id="admin-subview-orders" class="hidden space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-white">Kelola Transaksi & Verifikasi Bukti QRIS</h2>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-3.5">ID / Tanggal</th>
+                                        <th class="p-3.5">Pemesan & No WA</th>
+                                        <th class="p-3.5">Slot Pick Up</th>
+                                        <th class="p-3.5">Total</th>
+                                        <th class="p-3.5">Bukti QRIS</th>
+                                        <th class="p-3.5">Status</th>
+                                        <th class="p-3.5 text-right">Aksi Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-orders-tbody" class="divide-y divide-slate-700">
+                                    <!-- Dynamic rendered admin orders -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-    if(tab === 'dashboard') window.renderAdminDashboard();
-    if(tab === 'orders') window.renderAdminOrdersTable();
-    if(tab === 'products') window.renderAdminProductsTable();
-};
+                <!-- ADMIN TAB 3: PRODUCTS CRUD -->
+                <div id="admin-subview-products" class="hidden space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-bold text-white">Manajemen Katalog Produk</h2>
+                        <button onclick="openAddProductModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Tambah Produk Baru
+                        </button>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-3.5">Produk</th>
+                                        <th class="p-3.5">Brand & Kategori</th>
+                                        <th class="p-3.5">Harga</th>
+                                        <th class="p-3.5">Stok</th>
+                                        <th class="p-3.5 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-products-tbody" class="divide-y divide-slate-700">
+                                    <!-- Dynamic products table -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-function renderAdminDashboard() {
-    const orders = state.orders;
-    const totalSales = orders.filter(o => o.status === 'Selesai' || o.status === 'Siap Diambil di Toko').reduce((sum, o) => sum + o.totalAmount, 0);
-    const pendingVerif = orders.filter(o => o.status === 'Menunggu Verifikasi Admin').length;
-    const readyPick = orders.filter(o => o.status === 'Siap Diambil di Toko').length;
+                <!-- ADMIN TAB 4: PENGATURAN > METODE PEMBAYARAN -->
+                <div id="admin-subview-settings" class="hidden space-y-6">
+                    <div>
+                        <p class="text-[11px] text-slate-400 font-medium">Pengaturan / Metode Pembayaran</p>
+                        <h2 class="text-lg font-bold text-white">Pengaturan QRIS Pembayaran</h2>
+                    </div>
 
-    document.getElementById('adm-stat-sales').textContent = `Rp ${totalSales.toLocaleString('id-ID')}`;
-    document.getElementById('adm-stat-pending').textContent = pendingVerif;
-    document.getElementById('adm-stat-ready').textContent = readyPick;
-    document.getElementById('adm-stat-products').textContent = state.products.length;
+                    <form id="payment-settings-form" onsubmit="savePaymentSettings(event)" class="grid lg:grid-cols-2 gap-6">
+                        <!-- QRIS SAAT INI -->
+                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-4">
+                            <h3 class="text-sm font-bold text-white">QRIS Saat Ini</h3>
+                            <div class="bg-slate-900 rounded-2xl border border-slate-700 aspect-square max-w-xs mx-auto flex items-center justify-center overflow-hidden">
+                                <img id="settings-current-qris-img" src="" alt="QRIS Aktif" class="hidden w-full h-full object-contain p-4">
+                                <div id="settings-current-qris-empty" class="text-center text-slate-500 text-xs p-6">
+                                    <i class="fa-solid fa-qrcode text-3xl mb-2"></i>
+                                    <p>Belum ada QRIS yang diunggah.</p>
+                                </div>
+                            </div>
+                            <p id="settings-qris-meta" class="text-[11px] text-slate-400 text-center">Belum pernah diperbarui.</p>
+                        </div>
 
-    // Render Chart
-    const ctx = document.getElementById('adminSalesChart');
-    if (ctx) {
-        if(state.chartInstance) state.chartInstance.destroy();
-        state.chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Ming'],
-                datasets: [{
-                    label: 'Penjualan (Rp)',
-                    data: [1200000, 1900000, 1500000, 2200000, 2800000, 3500000, totalSales || 4100000],
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-}
+                        <!-- INFORMASI + UPLOAD -->
+                        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-5">
+                            <div>
+                                <h3 class="text-sm font-bold text-white mb-3">Informasi</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Pemilik QRIS</label>
+                                        <input type="text" id="settings-qris-owner" required placeholder="Contoh: YN SHOP" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-300 mb-1">Provider</label>
+                                            <select id="settings-qris-provider" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
+                                                <option value="DANA">DANA</option>
+                                                <option value="GoPay">GoPay</option>
+                                                <option value="OVO">OVO</option>
+                                                <option value="Bank">Bank</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-300 mb-1">No. Referensi (Opsional)</label>
+                                            <input type="text" id="settings-qris-reference" placeholder="Contoh: 08123456789" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-function renderAdminOrdersTable() {
-    const tbody = document.getElementById('admin-orders-tbody');
-    if(!tbody) return;
+                            <div class="border-t border-slate-700 pt-4">
+                                <h3 class="text-sm font-bold text-white mb-3">URL Gambar QRIS</h3>
+                                <div class="bg-slate-900 border-2 border-dashed border-slate-700 rounded-xl p-4 text-center">
+                                    <img id="settings-new-qris-preview" src="" alt="Preview QRIS baru" class="hidden max-h-40 mx-auto rounded-lg object-contain mb-2">
+                                    <div id="settings-new-qris-placeholder" class="text-slate-400 text-xs py-4">
+                                        <i class="fa-solid fa-image text-xl mb-1"></i>
+                                        <p class="font-bold">Preview Gambar QRIS</p>
+                                        <p class="text-[10px] mt-1">Tempel link gambar di bawah ini</p>
+                                    </div>
+                                </div>
+                                <input type="text" id="settings-qris-image-url" oninput="window.previewQrisUrl(this.value)" placeholder="https://contoh.com/gambar-qris.png" class="w-full mt-3 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
+                            </div>
 
-    if (state.orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-500">Belum ada transaksi.</td></tr>`;
-        return;
-    }
+                            <button type="submit" id="btn-save-payment-settings" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center gap-2">
+                                <span id="btn-save-payment-settings-text">Simpan Perubahan</span>
+                                <div id="btn-save-payment-settings-spinner" class="spinner hidden"></div>
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
-    tbody.innerHTML = state.orders.map(o => `
-        <tr>
-            <td class="p-3.5"><p class="font-bold text-white">${o.orderId}</p><p class="text-[10px] text-slate-500">${new Date(o.createdAt).toLocaleDateString('id-ID')}</p></td>
-            <td class="p-3.5"><p class="font-bold text-slate-200">${o.customerName}</p><p class="text-[10px] text-slate-400">${o.customerPhone}</p></td>
-            <td class="p-3.5">${o.pickupDate}<br><span class="text-slate-400">${o.pickupSlot} WIB</span></td>
-            <td class="p-3.5 font-bold text-emerald-400">Rp ${o.totalAmount.toLocaleString('id-ID')}</td>
-            <td class="p-3.5">
-                ${o.proofImage ? `<button onclick="window.viewProofModal('${o.proofImage}')" class="px-2 py-1 bg-slate-700 text-slate-200 rounded text-[10px]"><i class="fa-solid fa-image me-1"></i> Lihat Foto</button>` : '<span class="text-slate-500 italic">Belum upload</span>'}
-            </td>
-            <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${window.getStatusBadgeColor(o.status)}">${o.status}</span></td>
-            <td class="p-3.5 text-right space-x-1">
-                <button onclick="window.updateOrderStatus('${o.orderId}', 'Diverifikasi & Dikemas')" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded">Verifikasi</button>
-                <button onclick="window.updateOrderStatus('${o.orderId}', 'Siap Diambil di Toko')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded">Siap Ambil</button>
-                <button onclick="window.updateOrderStatus('${o.orderId}', 'Selesai')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white font-bold text-[10px] rounded">Selesai</button>
-            </td>
-        </tr>
-    `).join('');
-}
+            </div>
+        </main>
 
-window.updateOrderStatus = async function(orderId, newStatus) {
-    try {
-        await updateDoc(doc(db, 'artifacts', appId, 'orders', orderId), { status: newStatus });
-        window.showToast(`Status order ${orderId} diubah ke '${newStatus}'`, 'success');
-    } catch(e) {
-        window.showToast('Gagal update status: ' + e.message, 'error');
-    }
-};
+        <!-- MODAL: TAMBAH / EDIT PRODUK (CRUD Create & Update) -->
+        <div id="product-form-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn">
+                <button onclick="closeProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div class="p-6 space-y-4">
+                    <h3 id="product-form-title" class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Tambah Produk Baru</h3>
+                    <form id="product-form" onsubmit="saveProduct(event)" class="space-y-3">
+                        <input type="hidden" id="product-form-id">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Produk</label>
+                            <input type="text" id="product-form-name" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Brand</label>
+                                <input type="text" id="product-form-brand" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+                                <input type="text" id="product-form-category" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="Moisturizer, Serum, dll">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Jual (Rp)</label>
+                                <input type="number" id="product-form-price" required min="0" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Coret (Opsional)</label>
+                                <input type="number" id="product-form-original-price" min="0" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">URL Gambar Produk</label>
+                            <input type="url" id="product-form-image" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="https://...">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Deskripsi</label>
+                            <textarea id="product-form-description" rows="3" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition">
+                            Simpan Produk
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
-// --- PREVIEW BUKTI PEMBAYARAN (sebelumnya dipanggil di HTML tapi belum ada) ---
-window.viewProofModal = function(imageSrc) {
-    const modal = document.getElementById('proof-preview-modal');
-    const img = document.getElementById('proof-preview-image');
-    if (modal && img) {
-        img.src = imageSrc;
-        modal.classList.remove('hidden');
-    }
-};
-
-window.closeProofModal = function() {
-    document.getElementById('proof-preview-modal').classList.add('hidden');
-};
-
-// --- PRODUCTS CRUD (Read + Delete dari file asli, Create/Update baru) ---
-function renderAdminProductsTable() {
-    const tbody = document.getElementById('admin-products-tbody');
-    if(!tbody) return;
-
-    tbody.innerHTML = state.products.map(p => `
-        <tr>
-            <td class="p-3.5 flex items-center gap-2">
-                <img src="${p.image}" class="w-8 h-8 rounded object-cover">
-                <span class="font-bold text-white">${p.name}</span>
-            </td>
-            <td class="p-3.5">${p.brand} / ${p.category}</td>
-            <td class="p-3.5 font-bold text-rose-400">Rp ${p.price.toLocaleString('id-ID')}</td>
-            <td class="p-3.5"><span class="bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded text-[10px]">Tersedia</span></td>
-            <td class="p-3.5 text-right space-x-1">
-                <button onclick='window.editProduct(${JSON.stringify(p.id)})' class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="window.deleteProduct('${p.id}')" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
-}
-
-window.deleteProduct = async function(productId) {
-    try {
-        await deleteDoc(doc(db, 'artifacts', appId, 'products', productId));
-        window.showToast('Produk berhasil dihapus!', 'success');
-    } catch(e) {
-        window.showToast('Gagal menghapus produk: ' + e.message, 'error');
-    }
-};
-
-// --- CREATE / UPDATE: modal form tambah & edit produk ---
-window.openAddProductModal = function() {
-    document.getElementById('product-form').reset();
-    document.getElementById('product-form-id').value = '';
-    document.getElementById('product-form-title').textContent = 'Tambah Produk Baru';
-    document.getElementById('product-form-modal').classList.remove('hidden');
-};
-
-window.editProduct = function(productId) {
-    const p = state.products.find(item => item.id === productId);
-    if (!p) return;
-
-    document.getElementById('product-form-id').value = p.id;
-    document.getElementById('product-form-name').value = p.name || '';
-    document.getElementById('product-form-brand').value = p.brand || '';
-    document.getElementById('product-form-category').value = p.category || '';
-    document.getElementById('product-form-price').value = p.price || 0;
-    document.getElementById('product-form-original-price').value = p.originalPrice || '';
-    document.getElementById('product-form-image').value = p.image || '';
-    document.getElementById('product-form-description').value = p.description || '';
-
-    document.getElementById('product-form-title').textContent = 'Edit Produk';
-    document.getElementById('product-form-modal').classList.remove('hidden');
-};
-
-window.closeProductModal = function() {
-    document.getElementById('product-form-modal').classList.add('hidden');
-};
-
-window.saveProduct = async function(e) {
-    e.preventDefault();
-    const id = document.getElementById('product-form-id').value;
-
-    const productData = {
-        name: document.getElementById('product-form-name').value,
-        brand: document.getElementById('product-form-brand').value,
-        category: document.getElementById('product-form-category').value,
-        price: parseInt(document.getElementById('product-form-price').value) || 0,
-        originalPrice: parseInt(document.getElementById('product-form-original-price').value) || null,
-        image: document.getElementById('product-form-image').value,
-        description: document.getElementById('product-form-description').value,
-        rating: 5,
-        sales: 0,
-        isBestseller: false,
-        isNew: true
-    };
-
-    try {
-        if (id) {
-            // UPDATE produk yang sudah ada
-            await updateDoc(doc(db, 'artifacts', appId, 'products', id), productData);
-            window.showToast('Produk berhasil diperbarui!', 'success');
-        } else {
-            // CREATE produk baru
-            await addDoc(collection(db, 'artifacts', appId, 'products'), productData);
-            window.showToast('Produk baru berhasil ditambahkan!', 'success');
-        }
-        window.closeProductModal();
-    } catch (err) {
-        window.showToast('Gagal menyimpan produk: ' + err.message, 'error');
-    }
-};
-
-// Dipakai juga oleh ui.js (switchToViewMode), orders.js & products.js (snapshot real-time)
-window.renderAdminDashboard = renderAdminDashboard;
-window.renderAdminOrdersTable = renderAdminOrdersTable;
-window.renderAdminProductsTable = renderAdminProductsTable;
+        <!-- MODAL: PREVIEW BUKTI PEMBAYARAN -->
+        <div id="proof-preview-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn">
+                <button onclick="closeProofModal()" class="absolute top-3 right-3 bg-white/90 text-slate-600 hover:text-slate-900 p-1.5 rounded-full z-10"><i class="fa-solid fa-xmark"></i></button>
+                <img id="proof-preview-image" src="" alt="Bukti Pembayaran" class="w-full h-auto object-contain">
+            </div>
+        </div>
