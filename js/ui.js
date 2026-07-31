@@ -27,7 +27,27 @@ window.showToast = function(message, type = 'success') {
     }, 4000);
 };
 
+// Halaman yang WAJIB login (Firebase Authentication) sebelum bisa diakses.
+// Guest User tetap boleh melihat Home, Produk, Cara Order, Tentang Kami,
+// dan Keranjang (drawer) tanpa batasan.
+const GUEST_RESTRICTED_VIEWS = ['checkout', 'payment', 'customer-profile', 'order-tracker'];
+
 window.navigateTo = function(viewId) {
+    // --- GUARD: proteksi akses langsung ke halaman yang butuh login ---
+    // Berlaku baik dipanggil lewat tombol/menu maupun langsung dari console/URL.
+    // state.user diisi oleh listener onAuthStateChanged (js/auth.js) sebagai
+    // satu-satunya sumber kebenaran status login (bukan Local Storage).
+    if (GUEST_RESTRICTED_VIEWS.includes(viewId) && !state.user) {
+        if (viewId === 'checkout' && state) {
+            state.pendingRedirect = 'checkout';
+            window.pendingRedirect = 'checkout';
+        }
+        if (typeof window.showLoginRequiredModal === 'function') {
+            window.showLoginRequiredModal();
+        }
+        return;
+    }
+
     state.activeView = viewId;
     const views = document.querySelectorAll('.view-page');
     views.forEach(v => v.classList.add('hidden'));

@@ -153,6 +153,18 @@ window.redirectToLoginFromCheckout = function() {
     window.openAuthModal('login');
 };
 
+window.redirectToRegisterFromCheckout = function() {
+    // Simpan intent pengalihan ke Checkout (sama seperti tombol Masuk)
+    if (state) state.pendingRedirect = 'checkout';
+    window.pendingRedirect = 'checkout';
+
+    // Tutup modal warning
+    window.closeLoginRequiredModal();
+
+    // Buka modal Auth pada tab Daftar
+    window.openAuthModal('register');
+};
+
 // --- AUTH MODAL CONTROL ---
 window.openAuthModal = function(tab = 'login') {
     const modal = document.getElementById('auth-modal');
@@ -230,13 +242,14 @@ window.handleAuthLogin = async function(e) {
         window.pendingRedirect = null;
 
         if (redirectTarget === 'checkout') {
-            // Pengguna diarahkan langsung ke checkout
-            if (typeof window.navigateTo === 'function') {
-                window.navigateTo('checkout');
-            } else if (typeof window.switchToViewMode === 'function') {
-                window.switchToViewMode('checkout');
-            } else if (typeof window.openCheckoutPage === 'function') {
-                window.openCheckoutPage();
+            // Kembali ke halaman Keranjang (isi keranjang tetap dipertahankan).
+            // Pengguna dapat langsung menekan tombol Checkout kembali tanpa
+            // kehilangan isi keranjang.
+            if (typeof window.toggleCartDrawer === 'function') {
+                window.toggleCartDrawer(true);
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('Silakan lanjutkan checkout dari Keranjang Anda.', 'success');
             }
         } else if (role === 'admin') {
             if (typeof window.switchToViewMode === 'function') {
@@ -296,10 +309,12 @@ window.handleAuthRegister = async function(e) {
         window.pendingRedirect = null;
 
         if (redirectTarget === 'checkout') {
-            if (typeof window.navigateTo === 'function') {
-                window.navigateTo('checkout');
-            } else if (typeof window.switchToViewMode === 'function') {
-                window.switchToViewMode('checkout');
+            // Kembali ke halaman Keranjang (isi keranjang tetap dipertahankan).
+            if (typeof window.toggleCartDrawer === 'function') {
+                window.toggleCartDrawer(true);
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('Silakan lanjutkan checkout dari Keranjang Anda.', 'success');
             }
         }
     } catch(err) {

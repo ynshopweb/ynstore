@@ -9,22 +9,27 @@
         <!-- Judul & Pesan -->
         <h3 class="text-lg font-black text-slate-900 mb-2">Login Diperlukan</h3>
         <p class="text-xs text-slate-500 leading-relaxed mb-6">
-            Untuk melanjutkan proses checkout dan melakukan pemesanan, silakan login terlebih dahulu ke akun YN SHOP Anda.
+            Untuk melanjutkan proses checkout, silakan login atau daftar akun terlebih dahulu.
         </p>
         
-        <!-- Tombol Aksi (Batal & Masuk) -->
+        <!-- Tombol Aksi (Masuk, Daftar & Batal) -->
         <div class="grid grid-cols-2 gap-3">
-            <button type="button" 
-                    onclick="closeLoginRequiredModal()" 
-                    class="w-full py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs transition active:scale-95">
-                Batal
-            </button>
             <button type="button" 
                     onclick="redirectToLoginFromCheckout()" 
                     class="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-lg shadow-brand-500/25 transition active:scale-95">
                 Masuk
             </button>
+            <button type="button" 
+                    onclick="redirectToRegisterFromCheckout()" 
+                    class="w-full py-3 px-4 rounded-xl border-2 border-brand-600 text-brand-600 hover:bg-rose-50 font-bold text-xs transition active:scale-95">
+                Daftar
+            </button>
         </div>
+        <button type="button" 
+                onclick="closeLoginRequiredModal()" 
+                class="w-full mt-3 py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs transition active:scale-95">
+            Batal
+        </button>
     </div>
 </div>
 
