@@ -188,8 +188,6 @@ export async function handleCheckoutSubmit(e) {
     if (!slot) {
         if (typeof window.showToast === 'function') {
             window.showToast('Silakan pilih jam pengambilan di toko!', 'error');
-        } else {
-            alert('Silakan pilih jam pengambilan di toko!');
         }
         return;
     }
