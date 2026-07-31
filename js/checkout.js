@@ -36,10 +36,10 @@ export function renderTimeSlots() {
 
 /**
  * Memilih slot jam pengambilan dan memperbarui tampilan tombol slot
- * @param {string} slot - Teks slot waktu yang dipilih
- * @param {HTMLElement} btn - Elemen tombol yang diklik
+ * ALERT LOGIN AKTIF DI SINI
  */
 export function selectTimeSlot(slot, btn) {
+    // 1. Alert Login di Slot Pick Up
     if (!state.user) {
         if (typeof window.showToast === 'function') {
             window.showToast('Silakan login terlebih dahulu untuk memilih slot jam pengambilan!', 'warning');
@@ -72,13 +72,14 @@ export function selectTimeSlot(slot, btn) {
 }
 
 /**
- * Pengecekan status login saat mengklik tombol 'Lanjut Checkout'
- * @returns {boolean} Status apakah user sudah autentikasi
+ * Pengecekan status login saat mengklik tombol 'Lanjut Ke Checkout'
+ * ALERT LOGIN AKTIF DI SINI
  */
 export function checkAuthForCheckout() {
+    // 2. Alert Login di Tombol Lanjut Ke Checkout
     if (!state.user) {
         if (typeof window.showToast === 'function') {
-            window.showToast('Silakan login atau daftar akun terlebih dahulu untuk melanjutkan checkout!', 'warning');
+            window.showToast('Silakan login atau daftar akun terlebih dahulu untuk melanjutkan ke checkout!', 'warning');
         }
         if (typeof window.showLoginRequiredModal === 'function') {
             window.showLoginRequiredModal();
@@ -91,31 +92,21 @@ export function checkAuthForCheckout() {
 }
 
 /**
- * Menangani submit form checkout pesanan
- * @param {Event} e - Form Submit Event
+ * Menangani submit form pesanan (Tombol Lanjut Pembayaran QRIS)
+ * ALERT LOGIN DIHAPUS DARI SINI
  */
 export async function handleCheckoutSubmit(e) {
     if (e) e.preventDefault();
 
-    // Proteksi: Mencegah pengguna tanpa akun / belum login melakukan checkout
-    if (!state.user) {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Silakan login terlebih dahulu untuk melanjutkan checkout!', 'warning');
-        }
-        if (typeof window.showLoginRequiredModal === 'function') {
-            window.showLoginRequiredModal();
-        } else if (typeof window.openAuthModal === 'function') {
-            window.openAuthModal('login');
-        }
-        return;
-    }
+    // Proteksi login diam-diam (silent guard) tanpa memunculkan alert/toast login di sini
+    if (!state.user) return;
 
     const slotInput = document.getElementById('checkout-selected-slot');
     const slot = slotInput ? slotInput.value : '';
 
     if (!slot) {
         if (typeof window.showToast === 'function') {
-            window.showToast('Silakan pilih jam pengambilan di toko!', 'error');
+            window.showToast('Silakan pilih jam pengambilan di toko terlebih dahulu!', 'error');
         } else {
             alert('Silakan pilih jam pengambilan di toko terlebih dahulu!');
         }
@@ -202,14 +193,12 @@ export async function handleCheckoutSubmit(e) {
 
 /**
  * Menangani perubahan input file bukti transfer / pembayaran
- * @param {HTMLInputElement} input - Element input type file
  */
 export function handleProofFileChange(input) {
     if (!input || !input.files || !input.files[0]) return;
 
     const file = input.files[0];
     
-    // Validasi tipe file gambar
     if (!file.type.startsWith('image/')) {
         if (typeof window.showToast === 'function') {
             window.showToast('File yang diunggah harus berupa gambar (JPG, PNG, WebP)!', 'error');
@@ -266,7 +255,6 @@ export async function submitPaymentProof() {
             window.showToast('Bukti pembayaran terkirim! Admin akan memverifikasi.', 'success');
         }
 
-        // Buka tracker status pesanan
         if (typeof window.openOrderTracker === 'function') {
             window.openOrderTracker(orderId);
         } else if (typeof window.navigateTo === 'function') {
@@ -280,7 +268,7 @@ export async function submitPaymentProof() {
     }
 }
 
-// Expose fungsi ke objek window global agar dapat dipanggil dari atribut onclick/onsubmit HTML
+// Expose fungsi ke objek window global
 window.renderTimeSlots = renderTimeSlots;
 window.selectTimeSlot = selectTimeSlot;
 window.checkAuthForCheckout = checkAuthForCheckout;
