@@ -1,29 +1,20 @@
 // ============================================================
 // PAYMENT SETTINGS MODULE (Pengaturan > Metode Pembayaran)
 //
-// Mengelola QRIS pembayaran toko secara dinamis:
-// - Admin upload gambar QRIS baru -> disimpan ke Firebase Storage
-//   di folder payment/qris/{timestamp}.{ext}
-// - Metadata (nama pemilik, provider, no. referensi, waktu update,
-//   siapa yang update) disimpan di Firestore: settings/payment
+// Mengelola QRIS pembayaran toko:
+// - Admin cukup MEMASUKKAN URL gambar QRIS (sama seperti field
+//   gambar produk di admin.js) — TIDAK ada upload file ke Firebase
+//   Storage lagi, jadi tidak butuh bucket Storage / paket Blaze.
+// - Metadata (URL gambar, nama pemilik, provider, no. referensi,
+//   waktu update, siapa yang update) disimpan di Firestore:
+//   settings/payment
 // - Semua halaman (admin & customer) mendengarkan perubahan lewat
 //   onSnapshot, sehingga QRIS baru langsung tampil real-time tanpa
 //   perlu reload halaman.
-//
-// CATATAN KEAMANAN: pembatasan "hanya admin yang boleh mengubah"
-// di sini baru dijalankan di sisi UI (tombol/menu admin tidak
-// muncul untuk customer). Supaya benar-benar aman, tambahkan juga
-// Firestore Security Rules & Storage Rules di Firebase Console,
-// mis. izinkan write ke settings/payment dan payment/qris/**
-// hanya untuk user yang emailnya terdaftar sebagai admin.
 // ============================================================
 import { doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-import { db, storage } from './config.js';
+import { db } from './config.js';
 import { state } from './state.js';
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 // --- FIRESTORE SNAPSHOT PENGATURAN PEMBAYARAN (real-time) ---
 export function setupPaymentSettingsSnapshot() {
@@ -59,12 +50,14 @@ function renderAdminPaymentSettings() {
     const ownerInput = document.getElementById('settings-qris-owner');
     const providerInput = document.getElementById('settings-qris-provider');
     const refInput = document.getElementById('settings-qris-reference');
+    const urlInput = document.getElementById('settings-qris-image-url');
     const metaInfo = document.getElementById('settings-qris-meta');
 
     // Jangan timpa input yang sedang aktif diketik admin
     if (ownerInput && document.activeElement !== ownerInput) ownerInput.value = s.qrisOwner || '';
     if (providerInput && document.activeElement !== providerInput) providerInput.value = s.paymentProvider || 'DANA';
     if (refInput && document.activeElement !== refInput) refInput.value = s.referenceNumber || '';
+    if (urlInput && document.activeElement !== urlInput) urlInput.value = s.qrisImage || '';
 
     if (metaInfo) {
         if (s.updatedAt) {
@@ -98,38 +91,23 @@ function renderCustomerQRIS() {
     if (providerEl) providerEl.textContent = s.paymentProvider || 'DANA';
 }
 
-// --- UPLOAD: PILIH FILE QRIS BARU (preview + validasi) ---
-window.handleQrisFileChange = function(input) {
-    const file = input.files[0];
-    if (!file) return;
+// --- PREVIEW LIVE: dipanggil tiap admin mengetik/paste URL gambar QRIS ---
+window.previewQrisUrl = function(url) {
+    const preview = document.getElementById('settings-new-qris-preview');
+    const placeholder = document.getElementById('settings-new-qris-placeholder');
+    if (!preview || !placeholder) return;
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-        window.showToast('Format file harus JPG, PNG, atau WEBP.', 'error');
-        input.value = '';
-        return;
+    if (url && url.trim()) {
+        preview.src = url.trim();
+        preview.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+    } else {
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
     }
-    if (file.size > MAX_FILE_SIZE) {
-        window.showToast('Ukuran file maksimal 5MB.', 'error');
-        input.value = '';
-        return;
-    }
-
-    state.qrisFileToUpload = file;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const preview = document.getElementById('settings-new-qris-preview');
-        const placeholder = document.getElementById('settings-new-qris-placeholder');
-        if (preview && placeholder) {
-            preview.src = e.target.result;
-            preview.classList.remove('hidden');
-            placeholder.classList.add('hidden');
-        }
-    };
-    reader.readAsDataURL(file);
 };
 
-// --- SIMPAN PERUBAHAN: upload ke Storage (jika ada file baru) + simpan metadata ke Firestore ---
+// --- SIMPAN PERUBAHAN: langsung simpan URL + metadata ke Firestore (tanpa upload file) ---
 window.savePaymentSettings = async function(e) {
     e.preventDefault();
 
@@ -141,52 +119,26 @@ window.savePaymentSettings = async function(e) {
     const owner = document.getElementById('settings-qris-owner').value.trim();
     const provider = document.getElementById('settings-qris-provider').value;
     const referenceNumber = document.getElementById('settings-qris-reference').value.trim();
+    const qrisImageUrl = document.getElementById('settings-qris-image-url').value.trim();
 
     if (!owner || !provider) {
         window.showToast('Nama pemilik QRIS dan provider wajib diisi.', 'error');
+        return;
+    }
+    if (!qrisImageUrl) {
+        window.showToast('URL gambar QRIS wajib diisi.', 'error');
         return;
     }
 
     const btn = document.getElementById('btn-save-payment-settings');
     const btnText = document.getElementById('btn-save-payment-settings-text');
     const spinner = document.getElementById('btn-save-payment-settings-spinner');
-    const progressWrap = document.getElementById('settings-upload-progress-wrap');
-    const progressBar = document.getElementById('settings-upload-progress-bar');
-    const progressLabel = document.getElementById('settings-upload-progress-label');
 
     if (btn) btn.disabled = true;
     if (btnText) btnText.textContent = 'Menyimpan...';
     if (spinner) spinner.classList.remove('hidden');
 
     try {
-        let qrisImageUrl = state.paymentSettings.qrisImage || null;
-
-        // Kalau admin memilih file baru, upload dulu ke Firebase Storage
-        if (state.qrisFileToUpload) {
-            const file = state.qrisFileToUpload;
-            const ext = file.name.split('.').pop();
-            const fileName = `${Date.now()}.${ext}`;
-            const storageRef = ref(storage, `payment/qris/${fileName}`);
-
-            if (progressWrap) progressWrap.classList.remove('hidden');
-
-            qrisImageUrl = await new Promise((resolve, reject) => {
-                const uploadTask = uploadBytesResumable(storageRef, file);
-                uploadTask.on('state_changed',
-                    (snapshot) => {
-                        const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                        if (progressBar) progressBar.style.width = pct + '%';
-                        if (progressLabel) progressLabel.textContent = pct + '%';
-                    },
-                    (err) => reject(err),
-                    async () => {
-                        const url = await getDownloadURL(uploadTask.snapshot.ref);
-                        resolve(url);
-                    }
-                );
-            });
-        }
-
         await setDoc(doc(db, 'settings', 'payment'), {
             qrisImage: qrisImageUrl,
             qrisOwner: owner,
@@ -197,17 +149,6 @@ window.savePaymentSettings = async function(e) {
         }, { merge: true });
 
         window.showToast('Pengaturan QRIS berhasil disimpan!', 'success');
-        state.qrisFileToUpload = null;
-
-        // Reset preview area file baru (gambar aktif akan ter-update otomatis lewat onSnapshot)
-        const preview = document.getElementById('settings-new-qris-preview');
-        const placeholder = document.getElementById('settings-new-qris-placeholder');
-        const fileInput = document.getElementById('settings-qris-file-input');
-        if (preview) preview.classList.add('hidden');
-        if (placeholder) placeholder.classList.remove('hidden');
-        if (fileInput) fileInput.value = '';
-        if (progressWrap) progressWrap.classList.add('hidden');
-        if (progressBar) progressBar.style.width = '0%';
 
     } catch (err) {
         console.error('Gagal menyimpan pengaturan QRIS:', err);
