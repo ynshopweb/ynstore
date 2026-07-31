@@ -1,61 +1,146 @@
-    <div id="auth-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn">
-            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
-            
-            <div class="p-6">
-                <!-- Tabs -->
-                <div class="flex border-b border-slate-100 mb-6 font-bold text-sm">
-                    <button onclick="switchAuthTab('login')" id="auth-tab-btn-login" class="flex-1 pb-2 border-b-2 border-brand-600 text-brand-600">Masuk</button>
-                    <button onclick="switchAuthTab('register')" id="auth-tab-btn-register" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600">Daftar Akun</button>
-                </div>
-
-                <!-- LOGIN FORM -->
-                <form id="modal-login-form" onsubmit="handleAuthLogin(event)" class="space-y-4">
-                    <div id="login-error-alert" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-medium p-3 rounded-lg flex items-start gap-2">
-                        <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
-                        <span id="login-error-text"></span>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-                        <input type="email" id="auth-login-email" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="nama@email.com">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
-                        <input type="password" id="auth-login-password" required minlength="6" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="••••••••">
-                    </div>
-                    <button type="submit" id="btn-auth-login" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center">
-                        <span id="btn-auth-login-text">Masuk Sekarang</span>
-                        <div id="btn-auth-login-spinner" class="spinner hidden ms-2"></div>
-                    </button>
-                </form>
-
-                <!-- REGISTER FORM -->
-                <form id="modal-register-form" onsubmit="handleAuthRegister(event)" class="hidden space-y-4">
-                    <div id="register-error-alert" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-medium p-3 rounded-lg flex items-start gap-2">
-                        <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
-                        <span id="register-error-text"></span>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap</label>
-                        <input type="text" id="auth-reg-name" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="Nama Anda">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp</label>
-                        <input type="tel" id="auth-reg-phone" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="081234567890">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-                        <input type="email" id="auth-reg-email" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="nama@email.com">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password (Min 6 Karakter)</label>
-                        <input type="password" id="auth-reg-password" required minlength="6" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="••••••••">
-                    </div>
-                    <button type="submit" id="btn-auth-reg" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center">
-                        <span id="btn-auth-reg-text">Daftar Akun Baru</span>
-                        <div id="btn-auth-reg-spinner" class="spinner hidden ms-2"></div>
-                    </button>
-                </form>
-            </div>
+<!-- MODAL DIALOG "LOGIN DIPERLUKAN" (Mencegat Checkout Pengguna Unauthenticated) -->
+<div id="login-required-modal" class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden relative border border-slate-100 p-6 text-center transform transition-all duration-300 scale-100">
+        <!-- Icon Warning / Lock -->
+        <div class="w-16 h-16 rounded-full bg-rose-50 text-brand-600 flex items-center justify-center mx-auto mb-4 border border-rose-100 shadow-sm">
+            <i class="fa-solid fa-lock text-2xl"></i>
+        </div>
+        
+        <!-- Judul & Pesan -->
+        <h3 class="text-lg font-black text-slate-900 mb-2">Login Diperlukan</h3>
+        <p class="text-xs text-slate-500 leading-relaxed mb-6">
+            Untuk melanjutkan proses checkout dan melakukan pemesanan, silakan login terlebih dahulu ke akun YN SHOP Anda.
+        </p>
+        
+        <!-- Tombol Aksi (Batal & Masuk) -->
+        <div class="grid grid-cols-2 gap-3">
+            <button type="button" 
+                    onclick="closeLoginRequiredModal()" 
+                    class="w-full py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs transition active:scale-95">
+                Batal
+            </button>
+            <button type="button" 
+                    onclick="redirectToLoginFromCheckout()" 
+                    class="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-lg shadow-brand-500/25 transition active:scale-95">
+                Masuk
+            </button>
         </div>
     </div>
+</div>
+
+<!-- MODAL UTAMA AUTHENTICATION (LOGIN & REGISTER) -->
+<div id="auth-modal" class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative border border-slate-100 animate-fadeIn">
+        <!-- Tombol Close (X) -->
+        <button type="button" 
+                onclick="closeAuthModal()" 
+                class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition active:scale-95"
+                aria-label="Tutup modal login">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+        
+        <div class="p-6 sm:p-8">
+            <!-- Header Logo / Brand -->
+            <div class="text-center mb-6">
+                <span class="inline-block px-3 py-1 rounded-full bg-rose-50 text-brand-600 text-[10px] font-bold uppercase tracking-wider mb-2">
+                    YN SHOP
+                </span>
+                <h2 class="text-xl font-black text-slate-900" id="auth-modal-title">Selamat Datang Kembali</h2>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="flex border-b border-slate-100 mb-6 font-bold text-xs sm:text-sm">
+                <button type="button" 
+                        onclick="switchAuthTab('login')" 
+                        id="auth-tab-btn-login" 
+                        class="flex-1 pb-3 border-b-2 border-brand-600 text-brand-600 transition">
+                    Masuk
+                </button>
+                <button type="button" 
+                        onclick="switchAuthTab('register')" 
+                        id="auth-tab-btn-register" 
+                        class="flex-1 pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition">
+                    Daftar Akun
+                </button>
+            </div>
+
+            <!-- FORM LOGIN -->
+            <form id="modal-login-form" onsubmit="handleAuthLogin(event)" class="space-y-4">
+                <div id="login-error-alert" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-medium p-3.5 rounded-xl flex items-start gap-2">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 text-xs"></i>
+                    <span id="login-error-text"></span>
+                </div>
+                <div>
+                    <label for="auth-login-email" class="block text-xs font-bold text-slate-700 mb-1.5">Email</label>
+                    <input type="email" 
+                           id="auth-login-email" 
+                           required 
+                           class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition" 
+                           placeholder="nama@email.com">
+                </div>
+                <div>
+                    <label for="auth-login-password" class="block text-xs font-bold text-slate-700 mb-1.5">Password</label>
+                    <input type="password" 
+                           id="auth-login-password" 
+                           required 
+                           minlength="6" 
+                           class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition" 
+                           placeholder="••••••••">
+                </div>
+                <button type="submit" 
+                        id="btn-auth-login" 
+                        class="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-500/25 transition active:scale-95 flex items-center justify-center">
+                    <span id="btn-auth-login-text">Masuk Sekarang</span>
+                    <div id="btn-auth-login-spinner" class="spinner hidden ms-2"></div>
+                </button>
+            </form>
+
+            <!-- FORM REGISTER -->
+            <form id="modal-register-form" onsubmit="handleAuthRegister(event)" class="hidden space-y-4">
+                <div id="register-error-alert" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-medium p-3.5 rounded-xl flex items-start gap-2">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5 text-xs"></i>
+                    <span id="register-error-text"></span>
+                </div>
+                <div>
+                    <label for="auth-reg-name" class="block text-xs font-bold text-slate-700 mb-1.5">Nama Lengkap</label>
+                    <input type="text" 
+                           id="auth-reg-name" 
+                           required 
+                           class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition" 
+                           placeholder="Nama Anda">
+                </div>
+                <div>
+                    <label for="auth-reg-phone" class="block text-xs font-bold text-slate-700 mb-1.5">Nomor WhatsApp</label>
+                    <input type="tel" 
+                           id="auth-reg-phone" 
+                           required 
+                           class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition" 
+                           placeholder="081234567890">
+                </div>
+                <div>
+                    <label for="auth-reg-email" class="block text-xs font-bold text-slate-700 mb-1.5">Email</label>
+                    <input type="email" 
+                           id="auth-reg-email" 
+                           required 
+                           class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition" 
+                           placeholder="nama@email.com">
+                </div>
+                <div>
+                    <label for="auth-reg-password" class="block text-xs font-bold text-slate-700 mb-1.5">Password (Min 6 Karakter)</label>
+                    <input type="password" 
+                           id="auth-reg-password" 
+                           required 
+                           minlength="6" 
+                           class="w-full border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition" 
+                           placeholder="••••••••">
+                </div>
+                <button type="submit" 
+                        id="btn-auth-reg" 
+                        class="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-500/25 transition active:scale-95 flex items-center justify-center">
+                    <span id="btn-auth-reg-text">Daftar Akun Baru</span>
+                    <div id="btn-auth-reg-spinner" class="spinner hidden ms-2"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
