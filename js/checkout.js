@@ -143,7 +143,7 @@ export async function handleCheckoutSubmit(e) {
 }
 
 /**
- * Pengecekan status login sebelum berpindah ke halaman checkout
+ * Pengecekan status login sebelum berpindah ke halaman checkout1
  * @returns {boolean} Status apakah user sudah autentikasi
  */
 export function checkAuthForCheckout() {
