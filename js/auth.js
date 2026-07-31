@@ -1,7 +1,7 @@
 // ============================================================
 // AUTH MODULE
 // Login, Register, Logout, listener status login, dan kontrol
-// modal auth (tab login/daftar).
+// modal auth (tab login/daftar + dialog Login Diperlukan).
 // ============================================================
 import {
     signInWithEmailAndPassword,
@@ -15,10 +15,6 @@ import { auth, db, appId } from './config.js';
 import { state } from './state.js';
 
 // Menerjemahkan kode error Firebase Auth ke pesan yang lebih mudah dipahami.
-// Catatan: demi keamanan, Firebase sengaja TIDAK membedakan antara
-// "password salah" dan "akun belum terdaftar" (supaya orang tidak bisa
-// menebak-nebak email mana saja yang sudah punya akun). Jadi pesannya
-// menggabungkan kedua kemungkinan tersebut.
 function translateAuthError(err) {
     switch (err.code) {
         case 'auth/invalid-credential':
@@ -38,7 +34,7 @@ function translateAuthError(err) {
         case 'auth/network-request-failed':
             return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
         default:
-            return err.message;
+            return err.message || 'Terjadi kesalahan saat autentikasi.';
     }
 }
 
@@ -60,9 +56,7 @@ function hideAuthError(formType) {
 // --- LISTENER STATUS LOGIN (dipanggil otomatis oleh Firebase) ---
 onAuthStateChanged(auth, async (user) => {
     state.user = user;
-    const navAvatar = document.getElementById('user-nav-avatar');
     const navName = document.getElementById('user-nav-name');
-    const dropdownUserInfo = document.getElementById('dropdown-user-info');
     const authLinksGuest = document.getElementById('auth-links-guest');
     const authLinksLogged = document.getElementById('auth-links-logged');
     const adminMenuLink = document.getElementById('admin-menu-link');
@@ -79,50 +73,96 @@ onAuthStateChanged(auth, async (user) => {
             }
             state.userProfile = profileData;
 
-            if(navName) navName.textContent = profileData.nama || 'Pelanggan';
-            document.getElementById('dropdown-user-name').textContent = profileData.nama;
-            document.getElementById('dropdown-user-email').textContent = profileData.email;
+            if (navName) navName.textContent = profileData.nama || 'Pelanggan';
+            
+            const dropName = document.getElementById('dropdown-user-name');
+            const dropEmail = document.getElementById('dropdown-user-email');
+            if (dropName) dropName.textContent = profileData.nama || 'Pelanggan';
+            if (dropEmail) dropEmail.textContent = profileData.email || user.email;
 
-            authLinksGuest.classList.add('hidden');
-            authLinksLogged.classList.remove('hidden');
+            if (authLinksGuest) authLinksGuest.classList.add('hidden');
+            if (authLinksLogged) authLinksLogged.classList.remove('hidden');
 
-            if (profileData.role === 'admin' || user.email.includes('admin')) {
-                adminMenuLink.classList.remove('hidden');
-            } else {
-                adminMenuLink.classList.add('hidden');
+            if (adminMenuLink) {
+                if (profileData.role === 'admin' || user.email.includes('admin')) {
+                    adminMenuLink.classList.remove('hidden');
+                } else {
+                    adminMenuLink.classList.add('hidden');
+                }
             }
 
-            // Auto populate profile page UI
-            document.getElementById('profile-page-name').textContent = profileData.nama;
-            document.getElementById('profile-page-email').textContent = profileData.email + (profileData.noHp ? ` | ${profileData.noHp}` : '');
+            // Auto populate profile page UI jika elemen tersedia
+            const profName = document.getElementById('profile-page-name');
+            const profEmail = document.getElementById('profile-page-email');
+            if (profName) profName.textContent = profileData.nama || '';
+            if (profEmail) profEmail.textContent = profileData.email + (profileData.noHp ? ` | ${profileData.noHp}` : '');
 
             // Pre-fill checkout form jika user sudah login
-            document.getElementById('checkout-name').value = profileData.nama || '';
-            document.getElementById('checkout-email').value = profileData.email || '';
-            document.getElementById('checkout-phone').value = profileData.noHp || '';
+            const chkName = document.getElementById('checkout-name');
+            const chkEmail = document.getElementById('checkout-email');
+            const chkPhone = document.getElementById('checkout-phone');
+            if (chkName) chkName.value = profileData.nama || '';
+            if (chkEmail) chkEmail.value = profileData.email || user.email || '';
+            if (chkPhone) chkPhone.value = profileData.noHp || '';
 
         } catch (e) {
             console.error("Error fetching user profile:", e);
         }
     } else {
         state.userProfile = null;
-        if(navName) navName.textContent = 'Tamu';
-        document.getElementById('dropdown-user-name').textContent = 'Belum Login';
-        document.getElementById('dropdown-user-email').textContent = 'Silakan masuk ke akun Anda';
-        authLinksGuest.classList.remove('hidden');
-        authLinksLogged.classList.add('hidden');
-        adminMenuLink.classList.add('hidden');
+        if (navName) navName.textContent = 'Tamu';
+        
+        const dropName = document.getElementById('dropdown-user-name');
+        const dropEmail = document.getElementById('dropdown-user-email');
+        if (dropName) dropName.textContent = 'Belum Login';
+        if (dropEmail) dropEmail.textContent = 'Silakan masuk ke akun Anda';
+        
+        if (authLinksGuest) authLinksGuest.classList.remove('hidden');
+        if (authLinksLogged) authLinksLogged.classList.add('hidden');
+        if (adminMenuLink) adminMenuLink.classList.add('hidden');
     }
 });
 
+// --- DIALOG LOGIN DIPERLUKAN (Interception Checkout) ---
+window.showLoginRequiredModal = function() {
+    const modal = document.getElementById('login-required-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    } else {
+        // Fallback jika modal kustom belum ada
+        if (confirm("Untuk melanjutkan checkout, silakan login terlebih dahulu. Buka halaman login?")) {
+            window.redirectToLoginFromCheckout();
+        }
+    }
+};
+
+window.closeLoginRequiredModal = function() {
+    const modal = document.getElementById('login-required-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.redirectToLoginFromCheckout = function() {
+    // Simpan intent pengalihan ke Checkout
+    if (state) state.pendingRedirect = 'checkout';
+    window.pendingRedirect = 'checkout';
+    
+    // Tutup modal warning
+    window.closeLoginRequiredModal();
+    
+    // Buka modal Auth pada tab Login
+    window.openAuthModal('login');
+};
+
 // --- AUTH MODAL CONTROL ---
 window.openAuthModal = function(tab = 'login') {
-    document.getElementById('auth-modal').classList.remove('hidden');
+    const modal = document.getElementById('auth-modal');
+    if (modal) modal.classList.remove('hidden');
     window.switchAuthTab(tab);
 };
 
 window.closeAuthModal = function() {
-    document.getElementById('auth-modal').classList.add('hidden');
+    const modal = document.getElementById('auth-modal');
+    if (modal) modal.classList.add('hidden');
 };
 
 window.switchAuthTab = function(tab) {
@@ -134,31 +174,44 @@ window.switchAuthTab = function(tab) {
     const btnReg = document.getElementById('auth-tab-btn-register');
 
     if (tab === 'login') {
-        loginForm.classList.remove('hidden');
-        regForm.classList.add('hidden');
-        btnLogin.className = 'flex-1 pb-2 border-b-2 border-brand-600 text-brand-600';
-        btnReg.className = 'flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600';
+        if (loginForm) loginForm.classList.remove('hidden');
+        if (regForm) regForm.classList.add('hidden');
+        if (btnLogin) btnLogin.className = 'flex-1 pb-3 border-b-2 border-brand-600 text-brand-600 transition font-bold';
+        if (btnReg) btnReg.className = 'flex-1 pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition font-bold';
     } else {
-        loginForm.classList.add('hidden');
-        regForm.classList.remove('hidden');
-        btnReg.className = 'flex-1 pb-2 border-b-2 border-brand-600 text-brand-600';
-        btnLogin.className = 'flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600';
+        if (loginForm) loginForm.classList.add('hidden');
+        if (regForm) regForm.classList.remove('hidden');
+        if (btnReg) btnReg.className = 'flex-1 pb-3 border-b-2 border-brand-600 text-brand-600 transition font-bold';
+        if (btnLogin) btnLogin.className = 'flex-1 pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition font-bold';
     }
 };
 
-// --- LOGIN FORM ---
+// --- LOGIN FORM HANDLER ---
 window.handleAuthLogin = async function(e) {
     e.preventDefault();
     hideAuthError('login');
-    const email = document.getElementById('auth-login-email').value.trim();
-    const password = document.getElementById('auth-login-password').value;
+    
+    const emailInput = document.getElementById('auth-login-email');
+    const passInput = document.getElementById('auth-login-password');
+    const btnSpinner = document.getElementById('btn-auth-login-spinner');
+    
+    if (!emailInput || !passInput) return;
+
+    const email = emailInput.value.trim();
+    const password = passInput.value;
+
+    if (btnSpinner) btnSpinner.classList.remove('hidden');
 
     try {
         const cred = await signInWithEmailAndPassword(auth, email, password);
-        window.showToast('Login berhasil!', 'success');
+        
+        if (typeof window.showToast === 'function') {
+            window.showToast('Login berhasil! Selamat datang kembali.', 'success');
+        }
+        
         window.closeAuthModal();
 
-        // Tentukan role user supaya bisa langsung diarahkan ke panel yang tepat
+        // Tentukan role user
         let role = 'customer';
         try {
             const snap = await getDoc(doc(db, 'artifacts', appId, 'users', cred.user.uid, 'profile', 'data'));
@@ -171,27 +224,57 @@ window.handleAuthLogin = async function(e) {
             if (email.includes('admin')) role = 'admin';
         }
 
-        if (role === 'admin') {
-            window.switchToViewMode('admin');
+        // PERIKSA INTEGRASI PENDING REDIRECT (CHECKOUT)
+        const redirectTarget = (state && state.pendingRedirect) || window.pendingRedirect;
+        if (state) state.pendingRedirect = null;
+        window.pendingRedirect = null;
+
+        if (redirectTarget === 'checkout') {
+            // Pengguna diarahkan langsung ke checkout
+            if (typeof window.navigateTo === 'function') {
+                window.navigateTo('checkout');
+            } else if (typeof window.switchToViewMode === 'function') {
+                window.switchToViewMode('checkout');
+            } else if (typeof window.openCheckoutPage === 'function') {
+                window.openCheckoutPage();
+            }
+        } else if (role === 'admin') {
+            if (typeof window.switchToViewMode === 'function') {
+                window.switchToViewMode('admin');
+            }
         }
     } catch(err) {
         console.error('Login error:', err.code, err.message);
         showAuthError('login', translateAuthError(err));
+    } finally {
+        if (btnSpinner) btnSpinner.classList.add('hidden');
     }
 };
 
-// --- REGISTER FORM ---
+// --- REGISTER FORM HANDLER ---
 window.handleAuthRegister = async function(e) {
     e.preventDefault();
     hideAuthError('register');
-    const name = document.getElementById('auth-reg-name').value;
-    const phone = document.getElementById('auth-reg-phone').value;
-    const email = document.getElementById('auth-reg-email').value.trim();
-    const password = document.getElementById('auth-reg-password').value;
+
+    const nameInput = document.getElementById('auth-reg-name');
+    const phoneInput = document.getElementById('auth-reg-phone');
+    const emailInput = document.getElementById('auth-reg-email');
+    const passInput = document.getElementById('auth-reg-password');
+    const btnSpinner = document.getElementById('btn-auth-reg-spinner');
+
+    if (!nameInput || !emailInput || !passInput) return;
+
+    const name = nameInput.value.trim();
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const email = emailInput.value.trim();
+    const password = passInput.value;
+
+    if (btnSpinner) btnSpinner.classList.remove('hidden');
 
     try {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         const role = email.includes('admin') ? 'admin' : 'customer';
+
         await setDoc(doc(db, 'artifacts', appId, 'users', cred.user.uid, 'profile', 'data'), {
             uid: cred.user.uid,
             nama: name,
@@ -201,21 +284,45 @@ window.handleAuthRegister = async function(e) {
             createdAt: Date.now()
         });
 
-        window.showToast('Registrasi berhasil! Akun Anda aktif.', 'success');
+        if (typeof window.showToast === 'function') {
+            window.showToast('Registrasi berhasil! Akun Anda aktif.', 'success');
+        }
+        
         window.closeAuthModal();
+
+        // Check if registration was triggered during checkout flow
+        const redirectTarget = (state && state.pendingRedirect) || window.pendingRedirect;
+        if (state) state.pendingRedirect = null;
+        window.pendingRedirect = null;
+
+        if (redirectTarget === 'checkout') {
+            if (typeof window.navigateTo === 'function') {
+                window.navigateTo('checkout');
+            } else if (typeof window.switchToViewMode === 'function') {
+                window.switchToViewMode('checkout');
+            }
+        }
     } catch(err) {
         console.error('Register error:', err.code, err.message);
         showAuthError('register', translateAuthError(err));
+    } finally {
+        if (btnSpinner) btnSpinner.classList.add('hidden');
     }
 };
 
-// --- LOGOUT ---
+// --- LOGOUT HANDLER ---
 window.handleLogout = async function() {
     try {
         await signOut(auth);
-        window.showToast('Anda telah keluar.', 'success');
-        window.switchToViewMode('customer');
+        if (typeof window.showToast === 'function') {
+            window.showToast('Anda telah keluar.', 'success');
+        }
+        if (typeof window.switchToViewMode === 'function') {
+            window.switchToViewMode('customer');
+        }
     } catch(e) {
-        window.showToast('Gagal logout.', 'error');
+        if (typeof window.showToast === 'function') {
+            window.showToast('Gagal logout.', 'error');
+        }
     }
 };
