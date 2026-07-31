@@ -1,14 +1,9 @@
 // ============================================================
-// CONTOH FIRESTORE SECURITY RULES untuk YN Shop
-// Salin ke Firebase Console -> Firestore Database -> Rules
+// FIRESTORE SECURITY RULES untuk YN Shop (versi diperbaiki)
+// Salin ke Firebase Console -> Firestore Database -> Rules -> Publish
 //
-// Prinsip: hanya user yang dokumen profilnya berisi role "admin"
-// yang boleh menulis ke settings/payment & mengubah status pesanan.
-// Customer hanya boleh baca (get/list), dan hanya boleh membuat
-// pesanannya sendiri + upload bukti pembayaran miliknya sendiri.
-//
-// Sesuaikan {appId} di bawah dengan appId asli project Anda
-// (lihat js/config.js -> appId).
+// Ganti nilai APP_ID di bawah sesuai appId asli project Anda
+// (lihat js/config.js -> appId). Default project ini: 'ynstore-default-id'
 // ============================================================
 rules_version = '2';
 service cloud.firestore {
@@ -18,14 +13,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // appId di-hardcode di sini karena /settings/{docId} tidak berada
+    // di bawah path /artifacts/{appId}/, jadi variabel appId tidak bisa
+    // diambil otomatis dari path saat function ini dipanggil dari sana.
     function isAdmin() {
       return isSignedIn() &&
-        get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/profile/data).data.role == 'admin';
+        get(/databases/$(database)/documents/artifacts/ynstore-default-id/users/$(request.auth.uid)/profile/data).data.role == 'admin';
     }
 
     // Pengaturan pembayaran (QRIS) - hanya admin yang boleh menulis
     match /settings/{docId} {
-      allow read: if true; // customer & siapa saja boleh baca (untuk tampilkan QRIS)
+      allow read: if true;
       allow write: if isAdmin();
     }
 
