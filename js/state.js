@@ -17,8 +17,7 @@ export const state = {
     proofBase64: null,
     chartInstance: null,
     // Pengaturan pembayaran (QRIS) — diisi realtime dari Firestore settings/payment
-    paymentSettings: { qrisImage: null, qrisOwner: '', paymentProvider: '', referenceNumber: '', updatedAt: null, updatedBy: '' },
-    qrisFileToUpload: null
+    paymentSettings: { qrisImageUrl: null, qrisOwner: '', paymentProvider: '', updatedAt: null, updatedBy: '' }
 };
 
 // Alias ke window supaya atribut inline di HTML (mis. onchange="window.state...")

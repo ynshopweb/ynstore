@@ -137,51 +137,24 @@
                             <p id="settings-qris-meta" class="text-[11px] text-slate-400 text-center">Belum pernah diperbarui.</p>
                         </div>
 
-                        <!-- INFORMASI + UPLOAD -->
+                        <!-- URL QRIS + PREVIEW -->
                         <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-5">
                             <div>
-                                <h3 class="text-sm font-bold text-white mb-3">Informasi</h3>
-                                <div class="space-y-3">
-                                    <div>
-                                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Pemilik QRIS</label>
-                                        <input type="text" id="settings-qris-owner" required placeholder="Contoh: YN SHOP" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="block text-xs font-semibold text-slate-300 mb-1">Provider</label>
-                                            <select id="settings-qris-provider" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
-                                                <option value="DANA">DANA</option>
-                                                <option value="GoPay">GoPay</option>
-                                                <option value="OVO">OVO</option>
-                                                <option value="Bank">Bank</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-semibold text-slate-300 mb-1">No. Referensi (Opsional)</label>
-                                            <input type="text" id="settings-qris-reference" placeholder="Contoh: 08123456789" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
-                                        </div>
-                                    </div>
-                                </div>
+                                <h3 class="text-sm font-bold text-white mb-3">URL Gambar QRIS</h3>
+                                <input type="url" id="settings-qris-url" required placeholder="https://..." oninput="handleQrisUrlInput(this)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-brand-500">
+                                <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">Masukkan URL gambar QRIS yang dapat diakses publik. Anda dapat menggunakan URL dari Firebase Storage, Cloudinary, Imgur, atau layanan hosting gambar lainnya.</p>
                             </div>
 
                             <div class="border-t border-slate-700 pt-4">
-                                <h3 class="text-sm font-bold text-white mb-3">Upload QRIS Baru</h3>
-                                <label for="settings-qris-file-input" class="cursor-pointer block bg-slate-900 border-2 border-dashed border-slate-700 rounded-xl p-4 text-center hover:border-brand-500 transition">
-                                    <img id="settings-new-qris-preview" src="" alt="Preview QRIS baru" class="hidden max-h-40 mx-auto rounded-lg object-contain mb-2">
-                                    <div id="settings-new-qris-placeholder" class="text-slate-400 text-xs py-4">
-                                        <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i>
-                                        <p class="font-bold">Upload Gambar QRIS</p>
-                                        <p class="text-[10px] mt-1">JPG, PNG, atau WEBP. Maks 5MB.</p>
+                                <h3 class="text-sm font-bold text-white mb-3">Preview QRIS</h3>
+                                <div class="bg-slate-900 rounded-2xl border border-slate-700 aspect-square max-w-xs mx-auto flex items-center justify-center overflow-hidden">
+                                    <img id="settings-new-qris-preview" src="" alt="Preview QRIS" class="hidden w-full h-full object-contain p-4" onload="handleQrisPreviewLoad()" onerror="handleQrisPreviewError()">
+                                    <div id="settings-new-qris-placeholder" class="text-center text-slate-500 text-xs p-6">
+                                        <i class="fa-solid fa-qrcode text-3xl mb-2"></i>
+                                        <p>Belum ada QRIS.</p>
                                     </div>
-                                </label>
-                                <input type="file" id="settings-qris-file-input" accept="image/jpeg,image/png,image/webp" onchange="handleQrisFileChange(this)" class="hidden">
-
-                                <div id="settings-upload-progress-wrap" class="hidden mt-3">
-                                    <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
-                                        <div id="settings-upload-progress-bar" class="bg-brand-600 h-2 rounded-full transition-all duration-200" style="width:0%"></div>
-                                    </div>
-                                    <p id="settings-upload-progress-label" class="text-[10px] text-slate-400 mt-1 text-right">0%</p>
                                 </div>
+                                <p id="settings-qris-preview-error" class="hidden text-[11px] text-rose-400 mt-2 text-center">Gagal memuat gambar QRIS. Periksa kembali URL yang dimasukkan.</p>
                             </div>
 
                             <button type="submit" id="btn-save-payment-settings" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center gap-2">
