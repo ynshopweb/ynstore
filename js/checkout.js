@@ -35,23 +35,9 @@ export function renderTimeSlots() {
 }
 
 /**
- * Memilih slot jam pengambilan dan memperbarui tampilan tombol slot
- * ALERT LOGIN AKTIF DI SINI
+ * Memilih slot jam pengambilan (BISA DIKLIK TANPA ALERT LOGIN)
  */
 export function selectTimeSlot(slot, btn) {
-    // 1. Alert Login di Slot Pick Up
-    if (!state.user) {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Silakan login terlebih dahulu untuk memilih slot jam pengambilan!', 'warning');
-        }
-        if (typeof window.showLoginRequiredModal === 'function') {
-            window.showLoginRequiredModal();
-        } else if (typeof window.openAuthModal === 'function') {
-            window.openAuthModal('login');
-        }
-        return;
-    }
-
     // Reset status semua tombol slot
     document.querySelectorAll('.slot-btn').forEach(b => {
         b.classList.remove('border-brand-600', 'bg-rose-50', 'text-brand-700', 'font-bold', 'ring-2', 'ring-brand-500/20');
@@ -72,14 +58,22 @@ export function selectTimeSlot(slot, btn) {
 }
 
 /**
- * Pengecekan status login saat mengklik tombol 'Lanjut Ke Checkout'
- * ALERT LOGIN AKTIF DI SINI
+ * Pengecekan status login saat mengklik tombol 'Lanjut Ke Checkout' di Keranjang
+ * ALERT LOGIN UTAMA ADA DI SINI
  */
 export function checkAuthForCheckout() {
-    // 2. Alert Login di Tombol Lanjut Ke Checkout
+    // Cek apakah keranjang kosong
+    if (!state.cart || state.cart.length === 0) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Keranjang belanja Anda masih kosong!', 'error');
+        }
+        return false;
+    }
+
+    // Cek apakah user sudah login
     if (!state.user) {
         if (typeof window.showToast === 'function') {
-            window.showToast('Silakan login atau daftar akun terlebih dahulu untuk melanjutkan ke checkout!', 'warning');
+            window.showToast('Silakan login terlebih dahulu untuk melanjutkan checkout!', 'warning');
         }
         if (typeof window.showLoginRequiredModal === 'function') {
             window.showLoginRequiredModal();
@@ -88,17 +82,17 @@ export function checkAuthForCheckout() {
         }
         return false;
     }
+
     return true;
 }
 
 /**
  * Menangani submit form pesanan (Tombol Lanjut Pembayaran QRIS)
- * ALERT LOGIN DIHAPUS DARI SINI
  */
 export async function handleCheckoutSubmit(e) {
     if (e) e.preventDefault();
 
-    // Proteksi login diam-diam (silent guard) tanpa memunculkan alert/toast login di sini
+    // Proteksi diam-diam (silent guard)
     if (!state.user) return;
 
     const slotInput = document.getElementById('checkout-selected-slot');
@@ -113,7 +107,6 @@ export async function handleCheckoutSubmit(e) {
         return;
     }
 
-    // Validasi keranjang belanja tidak boleh kosong
     if (!state.cart || state.cart.length === 0) {
         if (typeof window.showToast === 'function') {
             window.showToast('Keranjang belanja Anda masih kosong!', 'error');
@@ -157,23 +150,20 @@ export async function handleCheckoutSubmit(e) {
     try {
         await setDoc(doc(db, 'artifacts', appId, 'orders', orderId), orderData);
         
-        // Simpan data pesanan saat ini di memori state
         state.currentOrderPayment = orderData;
 
-        // Kosongkan keranjang belanja setelah checkout berhasil
+        // Kosongkan keranjang
         state.cart = [];
         if (typeof window.updateCartUI === 'function') {
             window.updateCartUI();
         }
 
-        // Tampilkan informasi pesanan pada halaman pembayaran
         const payOrderNumEl = document.getElementById('pay-order-number');
         const payTotalEl = document.getElementById('pay-total-amount');
 
         if (payOrderNumEl) payOrderNumEl.textContent = orderId;
         if (payTotalEl) payTotalEl.textContent = `Rp ${totalAmount.toLocaleString('id-ID')}`;
 
-        // Beralih ke halaman pembayaran QRIS
         if (typeof window.navigateTo === 'function') {
             window.navigateTo('payment');
         } else if (typeof window.switchToViewMode === 'function') {
@@ -225,7 +215,7 @@ export function handleProofFileChange(input) {
 }
 
 /**
- * Mengirim bukti pembayaran QRIS ke Firestore dan mengupdate status pesanan
+ * Mengirim bukti pembayaran QRIS ke Firestore
  */
 export async function submitPaymentProof() {
     if (!state.proofBase64) {
@@ -268,7 +258,7 @@ export async function submitPaymentProof() {
     }
 }
 
-// Expose fungsi ke objek window global
+// Expose fungsi ke window global
 window.renderTimeSlots = renderTimeSlots;
 window.selectTimeSlot = selectTimeSlot;
 window.checkAuthForCheckout = checkAuthForCheckout;
