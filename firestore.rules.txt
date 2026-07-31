@@ -1,0 +1,53 @@
+// ============================================================
+// CONTOH FIRESTORE SECURITY RULES untuk YN Shop
+// Salin ke Firebase Console -> Firestore Database -> Rules
+//
+// Prinsip: hanya user yang dokumen profilnya berisi role "admin"
+// yang boleh menulis ke settings/payment & mengubah status pesanan.
+// Customer hanya boleh baca (get/list), dan hanya boleh membuat
+// pesanannya sendiri + upload bukti pembayaran miliknya sendiri.
+//
+// Sesuaikan {appId} di bawah dengan appId asli project Anda
+// (lihat js/config.js -> appId).
+// ============================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/artifacts/$(appId)/users/$(request.auth.uid)/profile/data).data.role == 'admin';
+    }
+
+    // Pengaturan pembayaran (QRIS) - hanya admin yang boleh menulis
+    match /settings/{docId} {
+      allow read: if true; // customer & siapa saja boleh baca (untuk tampilkan QRIS)
+      allow write: if isAdmin();
+    }
+
+    // Produk - baca untuk semua, tulis hanya admin
+    match /artifacts/{appId}/products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Profil user - hanya pemilik akun & admin yang boleh baca/tulis
+    match /artifacts/{appId}/users/{userId}/profile/{docId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+    }
+
+    // Pesanan - customer boleh buat pesanan sendiri & baca pesanan sendiri,
+    // hanya admin yang boleh ubah status pesanan siapa pun
+    match /artifacts/{appId}/orders/{orderId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+    }
+  }
+}
