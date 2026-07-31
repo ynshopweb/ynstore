@@ -1,23 +1,48 @@
-    <div id="cart-drawer-backdrop" onclick="toggleCartDrawer(false)" class="hidden fixed inset-0 bg-black/50 z-50 transition-opacity"></div>
-    <div id="cart-drawer" class="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-50 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
-        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-            <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <i class="fa-solid fa-bag-shopping text-brand-600"></i> Keranjang Belanja Anda
-            </h3>
-            <button onclick="toggleCartDrawer(false)" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
-        </div>
+<!-- CART DRAWER BACKDROP -->
+<div id="cart-drawer-backdrop" 
+     onclick="toggleCartDrawer(false)" 
+     class="hidden fixed inset-0 bg-black/50 z-50 transition-opacity backdrop-blur-sm">
+</div>
 
-        <div id="cart-items-container" class="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100">
-            <!-- Dynamic cart items -->
-        </div>
+<!-- CART DRAWER CONTAINER -->
+<div id="cart-drawer" 
+     class="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-50 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
+    
+    <!-- HEADER DRAWER -->
+    <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <i class="fa-solid fa-bag-shopping text-brand-600 text-base"></i> 
+            Keranjang Belanja Anda
+        </h3>
+        <button type="button" 
+                onclick="toggleCartDrawer(false)" 
+                class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/50 transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+    </div>
 
-        <div class="p-4 border-t border-slate-100 bg-slate-50 space-y-3">
-            <div class="flex justify-between text-sm font-bold text-slate-900">
-                <span>Total Belanja:</span>
-                <span id="cart-drawer-total" class="text-brand-600">Rp 0</span>
-            </div>
-            <button onclick="proceedToCheckout()" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-circle-check"></i> Lanjut Ke Checkout & Slot Pick Up
-            </button>
+    <!-- ITEM LIST CONTAINER (DYNAMIC CONTENT) -->
+    <div id="cart-items-container" class="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100">
+        <!-- Item keranjang belanja akan dirender secara dinamis lewat JavaScript di sini -->
+        <div class="text-center py-10 text-slate-400 text-xs">
+            <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300 block"></i>
+            Keranjang kamu masih kosong
         </div>
     </div>
+
+    <!-- FOOTER DRAWER & CHECKOUT ACTION -->
+    <div class="p-4 border-t border-slate-100 bg-slate-50 space-y-3">
+        <div class="flex justify-between items-center text-sm font-bold text-slate-900">
+            <span class="text-xs text-slate-500 font-medium">Subtotal Belanja:</span>
+            <span id="cart-drawer-total" class="text-brand-600 text-base font-extrabold">Rp 0</span>
+        </div>
+        
+        <!-- TOMBOL LANJUT KE CHECKOUT DENGAN CEK LOGIN -->
+        <button type="button" 
+                onclick="proceedToCheckout()" 
+                class="w-full py-3.5 bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-600/20 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-circle-check text-sm"></i> 
+            Lanjut Ke Checkout & Slot Pick Up
+        </button>
+    </div>
+</div>
