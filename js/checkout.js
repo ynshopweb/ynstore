@@ -66,6 +66,20 @@ export function selectTimeSlot(slot, btn) {
 export async function handleCheckoutSubmit(e) {
     if (e) e.preventDefault();
 
+    // Proteksi: Mencegah pengguna tanpa akun / belum login melakukan checkout
+    if (!state.user) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Silakan login terlebih dahulu untuk melanjutkan checkout!', 'warning');
+        }
+        // Munculkan modal peringatan login atau modal login
+        if (typeof window.showLoginRequiredModal === 'function') {
+            window.showLoginRequiredModal();
+        } else if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login');
+        }
+        return;
+    }
+
     const slotInput = document.getElementById('checkout-selected-slot');
     const slot = slotInput ? slotInput.value : '';
 
@@ -108,7 +122,7 @@ export async function handleCheckoutSubmit(e) {
         customerName: name,
         customerPhone: phone,
         customerEmail: email,
-        userId: state.user ? state.user.uid : 'guest',
+        userId: state.user.uid,
         pickupDate,
         pickupSlot: slot,
         notes,
