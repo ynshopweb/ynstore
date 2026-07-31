@@ -40,6 +40,19 @@ export function renderTimeSlots() {
  * @param {HTMLElement} btn - Elemen tombol yang diklik
  */
 export function selectTimeSlot(slot, btn) {
+    // Proteksi utama: Saat memilih slot pick up, langsung cegat jika pengguna belum login
+    if (!state.user) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Silakan login terlebih dahulu untuk memilih slot jam pengambilan!', 'warning');
+        }
+        if (typeof window.showLoginRequiredModal === 'function') {
+            window.showLoginRequiredModal();
+        } else if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login');
+        }
+        return;
+    }
+
     // Reset status semua tombol slot
     document.querySelectorAll('.slot-btn').forEach(b => {
         b.classList.remove('border-brand-600', 'bg-rose-50', 'text-brand-700', 'font-bold', 'ring-2', 'ring-brand-500/20');
@@ -57,6 +70,95 @@ export function selectTimeSlot(slot, btn) {
     if (slotInput) {
         slotInput.value = slot;
     }
+}
+
+/**
+ * Pengecekan status login saat mengklik tombol 'Lanjut Checkout'
+ * @returns {boolean} Status apakah user sudah autentikasi
+ */
+export function checkAuthForCheckout() {
+    if (!state.user) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Silakan login atau daftar akun terlebih dahulu untuk melanjutkan ke formulir checkout!', 'warning');
+        }
+        if (typeof window.showLoginRequiredModal === 'function') {
+            window.showLoginRequiredModal();
+        } else if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login');
+        }
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Menangani submit form checkout pesanan
+ * @param {Event} e - Form Submit Event
+ */
+export async function handleCheckoutSubmit(e) {
+    if (e) e.preventDefault();
+
+    // Proteksi lapis kedua sebelum submit pesanan
+    if (!state.user) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Silakan login terlebih dahulu!', 'warning');
+        }
+        if (typeof window.showLoginRequiredModal === 'function') {
+            window.showLoginRequiredModal();
+        } else if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login');
+        }
+        return;
+    }
+
+    const slotInput = document.getElementById('checkout-selected-slot');
+    const slot = slotInput ? slotInput.value : '';
+
+    if (!slot) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Silakan pilih jam pengambilan di toko terlebih dahulu!', 'error');
+        } else {
+            alert('Silakan pilih jam pengambilan di toko terlebih dahulu!');
+        }
+        return;
+    }
+
+    // Reset status semua tombol slot
+    document.querySelectorAll('.slot-btn').forEach(b => {
+        b.classList.remove('border-brand-600', 'bg-rose-50', 'text-brand-700', 'font-bold', 'ring-2', 'ring-brand-500/20');
+        b.classList.add('border-slate-200', 'text-slate-700');
+    });
+
+    // Aktifkan tombol slot yang dipilih
+    if (btn) {
+        btn.classList.remove('border-slate-200', 'text-slate-700');
+        btn.classList.add('border-brand-600', 'bg-rose-50', 'text-brand-700', 'font-bold', 'ring-2', 'ring-brand-500/20');
+    }
+
+    // Simpan slot ke hidden input
+    const slotInput = document.getElementById('checkout-selected-slot');
+    if (slotInput) {
+        slotInput.value = slot;
+    }
+}
+
+/**
+ * Pengecekan status login sebelum berpindah ke halaman checkout
+ * @returns {boolean} Status apakah user sudah autentikasi
+ */
+export function checkAuthForCheckout() {
+    if (!state.user) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Silakan login atau daftar akun terlebih dahulu untuk melanjutkan checkout!', 'warning');
+        }
+        if (typeof window.showLoginRequiredModal === 'function') {
+            window.showLoginRequiredModal();
+        } else if (typeof window.openAuthModal === 'function') {
+            window.openAuthModal('login');
+        }
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -253,6 +355,7 @@ export async function submitPaymentProof() {
 // Expose fungsi ke objek window global agar dapat dipanggil dari atribut onclick/onsubmit HTML
 window.renderTimeSlots = renderTimeSlots;
 window.selectTimeSlot = selectTimeSlot;
+window.checkAuthForCheckout = checkAuthForCheckout;
 window.handleCheckoutSubmit = handleCheckoutSubmit;
 window.handleProofFileChange = handleProofFileChange;
 window.submitPaymentProof = submitPaymentProof;
