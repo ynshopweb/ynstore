@@ -1,0 +1,111 @@
+        <header id="customer-header" class="bg-white border-b border-slate-100 sticky top-[33px] z-40 transition-shadow duration-300">
+            <div class="bg-rose-50 text-brand-700 text-xs py-1.5 px-4 text-center font-medium border-b border-rose-100 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-store text-brand-600"></i>
+                <span>Store Pick Up YN Shop: Pesan Online, Bebas Antre & Ambil Langsung di Toko!</span>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16 gap-4">
+                    <!-- Logo -->
+                    <a href="javascript:void(0)" onclick="navigateTo('home')" class="flex items-center gap-2 group">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-rose-400 flex items-center justify-center text-white font-black text-xl shadow-md group-hover:scale-105 transition-transform">
+                            YN
+                        </div>
+                        <div>
+                            <span class="text-xl font-bold tracking-tight text-slate-900 block leading-none">YN SHOP</span>
+                            <span class="text-[10px] text-brand-600 font-bold uppercase tracking-widest block mt-0.5">Beauty & Skincare</span>
+                        </div>
+                    </a>
+
+                    <!-- Search Bar (Desktop) -->
+                    <div class="hidden md:flex flex-1 max-w-md mx-6">
+                        <div class="relative w-full">
+                            <input type="text" id="global-search-input" onkeyup="if(event.key==='Enter') executeGlobalSearch()" placeholder="Cari Skincare, Sunscreen, Cushion, Serum..." class="w-full bg-slate-100/80 border border-transparent focus:border-brand-500 focus:bg-white text-sm rounded-full py-2 pl-10 pr-10 outline-none transition-all">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                            <button onclick="executeGlobalSearch()" class="absolute right-1.5 top-1 bg-brand-600 hover:bg-brand-700 text-white p-1.5 rounded-full w-7 h-7 flex items-center justify-center transition">
+                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Links & User Menu -->
+                    <div class="flex items-center gap-2 sm:gap-4">
+                        <nav class="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600">
+                            <a href="javascript:void(0)" onclick="navigateTo('home')" class="hover:text-brand-600 transition">Home</a>
+                            <a href="javascript:void(0)" onclick="navigateTo('products')" class="hover:text-brand-600 transition">Produk</a>
+                            <a href="javascript:void(0)" onclick="navigateTo('promo')" class="hover:text-brand-600 transition">Promo</a>
+                            <a href="javascript:void(0)" onclick="navigateTo('about')" class="hover:text-brand-600 transition">Tentang Kami</a>
+                            <a href="javascript:void(0)" onclick="navigateTo('how-to-order')" class="hover:text-brand-600 transition">Cara Order</a>
+                        </nav>
+
+                        <div class="h-5 w-px bg-slate-200 hidden lg:block"></div>
+
+                        <!-- Cart Button -->
+                        <button onclick="toggleCartDrawer(true)" class="relative p-2 text-slate-700 hover:text-brand-600 transition rounded-full hover:bg-slate-100">
+                            <i class="fa-solid fa-bag-shopping text-xl"></i>
+                            <span id="cart-badge-count" class="absolute -top-1 -right-1 bg-brand-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">0</span>
+                        </button>
+
+                        <!-- User Account / Auth Dropdown -->
+                        <div class="relative" id="user-menu-container">
+                            <button id="user-avatar-btn" onclick="toggleUserDropdown()" class="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-100 transition border border-slate-200">
+                                <img id="user-nav-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Avatar" class="w-7 h-7 rounded-full object-cover">
+                                <span id="user-nav-name" class="text-xs font-semibold text-slate-700 hidden sm:inline max-w-[100px] truncate">Tamu</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 me-1"></i>
+                            </button>
+
+                            <!-- Dropdown Menu -->
+                            <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fadeIn">
+                                <div class="px-4 py-2 border-b border-slate-100" id="dropdown-user-info">
+                                    <p id="dropdown-user-name" class="text-xs font-bold text-slate-800">Belum Login</p>
+                                    <p id="dropdown-user-email" class="text-[11px] text-slate-500 truncate">Silakan masuk ke akun Anda</p>
+                                </div>
+                                
+                                <div id="auth-links-guest">
+                                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-brand-600 hover:bg-rose-50 transition">
+                                        <i class="fa-solid fa-right-to-bracket w-4 text-center"></i> Masuk / Login
+                                    </a>
+                                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-rose-50 hover:text-brand-600 transition">
+                                        <i class="fa-solid fa-user-plus w-4 text-center"></i> Daftar Akun Baru
+                                    </a>
+                                </div>
+
+                                <div id="auth-links-logged" class="hidden">
+                                    <a href="javascript:void(0)" onclick="navigateTo('customer-profile')" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-rose-50 hover:text-brand-600 transition">
+                                        <i class="fa-solid fa-user-gear w-4 text-center"></i> Profil & Pesanan Saya
+                                    </a>
+                                    <div id="admin-menu-link" class="hidden">
+                                        <a href="javascript:void(0)" onclick="switchToViewMode('admin')" class="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition">
+                                            <i class="fa-solid fa-gauge-high w-4 text-center"></i> Panel Admin YN Shop
+                                        </a>
+                                    </div>
+                                    <div class="border-t border-slate-100 my-1"></div>
+                                    <button onclick="handleLogout()" class="w-full text-left flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition">
+                                        <i class="fa-solid fa-right-from-bracket w-4 text-center"></i> Keluar / Logout
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Menu Toggle -->
+                        <button onclick="toggleMobileNav()" class="p-2 text-slate-700 lg:hidden hover:bg-slate-100 rounded-lg">
+                            <i class="fa-solid fa-bars text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Nav Panel -->
+            <div id="mobile-nav-panel" class="hidden lg:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-3">
+                <div class="relative w-full">
+                    <input type="text" id="mobile-search-input" onkeyup="if(event.key==='Enter') executeGlobalSearch(true)" placeholder="Cari Skincare, Sunscreen..." class="w-full bg-slate-100 border border-slate-200 text-sm rounded-lg py-2 pl-9 pr-4 outline-none">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-sm font-medium pt-1">
+                    <a href="javascript:void(0)" onclick="navigateTo('home'); toggleMobileNav();" class="p-2 rounded bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-brand-600"><i class="fa-solid fa-house me-2"></i>Home</a>
+                    <a href="javascript:void(0)" onclick="navigateTo('products'); toggleMobileNav();" class="p-2 rounded bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-brand-600"><i class="fa-solid fa-boxes-stacked me-2"></i>Produk</a>
+                    <a href="javascript:void(0)" onclick="navigateTo('promo'); toggleMobileNav();" class="p-2 rounded bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-brand-600"><i class="fa-solid fa-tags me-2"></i>Promo</a>
+                    <a href="javascript:void(0)" onclick="navigateTo('about'); toggleMobileNav();" class="p-2 rounded bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-brand-600"><i class="fa-solid fa-circle-info me-2"></i>Tentang Kami</a>
+                </div>
+            </div>
+        </header>
