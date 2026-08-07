@@ -93,11 +93,16 @@
 
                 <!-- ADMIN TAB 3: PRODUCTS CRUD -->
                 <div id="admin-subview-products" class="hidden space-y-4">
-                    <div class="flex justify-between items-center">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
                         <h2 class="text-lg font-bold text-white">Manajemen Katalog Produk</h2>
-                        <button onclick="openAddProductModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-plus"></i> Tambah Produk Baru
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="openImportExportModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-file-excel"></i> Import / Export Excel
+                            </button>
+                            <button onclick="openAddProductModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Tambah Produk Baru
+                            </button>
+                        </div>
                     </div>
                     <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
                         <div class="overflow-x-auto">
@@ -358,6 +363,147 @@
                             Simpan Produk
                         </button>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: IMPORT & EXPORT PRODUK VIA EXCEL -->
+        <!-- Modul baru (js/product-import-export.js), pengembangan dari sistem
+             produk yang sudah ada. Tidak mengubah modal/CRUD produk manual di atas. -->
+        <div id="import-export-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl relative animate-fadeIn flex flex-col overflow-hidden">
+                <button onclick="closeImportExportModal()" class="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm text-slate-400 hover:text-slate-600 p-1.5 rounded-full shadow-sm"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div class="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
+                    <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 pr-8">
+                        <i class="fa-solid fa-file-excel text-emerald-600 me-1.5"></i> Import &amp; Export Produk (Excel)
+                    </h3>
+
+                    <!-- ========== EXPORT ========== -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                        <p class="text-xs font-bold text-slate-800">Export Data Produk</p>
+                        <p class="text-[11px] text-slate-500">Unduh template kosong untuk mengisi produk baru, atau export seluruh katalog produk yang sedang berjalan saat ini ke Excel.</p>
+                        <div class="flex flex-wrap gap-2 pt-1">
+                            <button type="button" onclick="downloadProductTemplate()" class="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-[11px] rounded-lg transition">
+                                <i class="fa-solid fa-download me-1"></i> Unduh Template Excel
+                            </button>
+                            <button type="button" onclick="exportProductsToExcel()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg transition">
+                                <i class="fa-solid fa-file-export me-1"></i> Export Semua Produk
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ========== IMPORT ========== -->
+                    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                        <p class="text-xs font-bold text-slate-800">Import Produk dari Excel</p>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">1. Pilih Mode Import</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                                <label class="flex items-center gap-1.5 border border-slate-200 rounded-lg p-2 cursor-pointer">
+                                    <input type="radio" name="import-mode" value="add" checked onchange="window.onImportModeChange()" class="accent-brand-600">
+                                    <span><span class="font-bold text-slate-800">Tambah Saja</span><br><span class="text-slate-400">Semua baris jadi produk baru</span></span>
+                                </label>
+                                <label class="flex items-center gap-1.5 border border-slate-200 rounded-lg p-2 cursor-pointer">
+                                    <input type="radio" name="import-mode" value="update" onchange="window.onImportModeChange()" class="accent-brand-600">
+                                    <span><span class="font-bold text-slate-800">Update Saja</span><br><span class="text-slate-400">Wajib isi kolom ID</span></span>
+                                </label>
+                                <label class="flex items-center gap-1.5 border border-slate-200 rounded-lg p-2 cursor-pointer">
+                                    <input type="radio" name="import-mode" value="add_update" onchange="window.onImportModeChange()" class="accent-brand-600">
+                                    <span><span class="font-bold text-slate-800">Tambah + Update</span><br><span class="text-slate-400">ID kosong = baru, ID cocok = update</span></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-700 mb-1.5">2. Unggah File Excel (.xlsx)</label>
+                            <input type="file" id="import-file-input" accept=".xlsx,.xls" onchange="handleImportFileSelect(event)" class="w-full text-[11px] border border-slate-300 rounded-lg p-2 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-[11px] file:font-bold file:cursor-pointer cursor-pointer">
+                        </div>
+
+                        <!-- PREVIEW & VALIDASI -->
+                        <div id="import-preview-section" class="hidden space-y-3">
+                            <p class="text-[11px] font-semibold text-slate-700">3. Preview &amp; Validasi</p>
+                            <div class="grid grid-cols-4 gap-2 text-center">
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-slate-800" id="import-stat-total">0</p>
+                                    <p class="text-[9px] text-slate-500 uppercase">Total Baris</p>
+                                </div>
+                                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-emerald-700" id="import-stat-valid">0</p>
+                                    <p class="text-[9px] text-emerald-600 uppercase">Valid</p>
+                                </div>
+                                <div class="bg-rose-50 border border-rose-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-rose-700" id="import-stat-error">0</p>
+                                    <p class="text-[9px] text-rose-600 uppercase">Error</p>
+                                </div>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-blue-700" id="import-stat-update">0</p>
+                                    <p class="text-[9px] text-blue-600 uppercase">Akan Diupdate</p>
+                                </div>
+                            </div>
+
+                            <div class="border border-slate-200 rounded-lg overflow-hidden">
+                                <div class="max-h-56 overflow-y-auto">
+                                    <table class="w-full text-left text-[10px]">
+                                        <thead class="bg-slate-100 text-slate-500 uppercase font-bold sticky top-0 z-10">
+                                            <tr>
+                                                <th class="p-2">#</th>
+                                                <th class="p-2">Status</th>
+                                                <th class="p-2">Nama</th>
+                                                <th class="p-2">Brand</th>
+                                                <th class="p-2">Harga</th>
+                                                <th class="p-2">Stok</th>
+                                                <th class="p-2">Keterangan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="import-preview-tbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <p id="import-preview-note" class="text-[10px] text-slate-400"></p>
+
+                            <button type="button" id="import-start-btn" onclick="startProductImport()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition disabled:opacity-40 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-upload me-1"></i> Mulai Import
+                            </button>
+                        </div>
+
+                        <!-- PROGRESS REAL-TIME -->
+                        <div id="import-progress-section" class="hidden space-y-2">
+                            <div class="flex justify-between text-[11px] font-bold text-slate-700">
+                                <span><i class="fa-solid fa-spinner fa-spin me-1"></i> Mengimpor produk...</span>
+                                <span id="import-progress-label">0 / 0</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                                <div id="import-progress-bar" class="bg-brand-600 h-2.5 rounded-full transition-all duration-200" style="width:0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- RINGKASAN HASIL -->
+                        <div id="import-result-section" class="hidden space-y-3">
+                            <p class="text-[11px] font-semibold text-slate-700"><i class="fa-solid fa-circle-check text-emerald-500 me-1"></i> Import Selesai</p>
+                            <div class="grid grid-cols-4 gap-2 text-center">
+                                <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-emerald-700" id="import-result-added">0</p>
+                                    <p class="text-[9px] text-emerald-600 uppercase">Ditambah</p>
+                                </div>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-blue-700" id="import-result-updated">0</p>
+                                    <p class="text-[9px] text-blue-600 uppercase">Diupdate</p>
+                                </div>
+                                <div class="bg-amber-50 border border-amber-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-amber-700" id="import-result-skipped">0</p>
+                                    <p class="text-[9px] text-amber-600 uppercase">Dilewati</p>
+                                </div>
+                                <div class="bg-rose-50 border border-rose-200 rounded-lg p-2">
+                                    <p class="text-sm font-black text-rose-700" id="import-result-failed">0</p>
+                                    <p class="text-[9px] text-rose-600 uppercase">Gagal</p>
+                                </div>
+                            </div>
+                            <div id="import-result-errors" class="hidden bg-rose-50 border border-rose-200 rounded-lg p-3 max-h-32 overflow-y-auto text-[10px] text-rose-700 space-y-0.5"></div>
+                            <button type="button" onclick="resetImportExportModal()" class="w-full py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-lg transition">
+                                <i class="fa-solid fa-rotate-left me-1"></i> Import File Lain
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

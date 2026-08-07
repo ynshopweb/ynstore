@@ -22,6 +22,7 @@ import './cart.js';
 import './checkout.js';
 import { setupOrdersSnapshot } from './orders.js';
 import './admin.js';
+import './product-import-export.js';
 import { setupPaymentSettingsSnapshot } from './settings.js';
 import './reports.js';
 
