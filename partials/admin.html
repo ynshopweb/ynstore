@@ -107,6 +107,7 @@
                                         <th class="p-3.5">Produk</th>
                                         <th class="p-3.5">Brand & Kategori</th>
                                         <th class="p-3.5">Harga</th>
+                                        <th class="p-3.5">Promo</th>
                                         <th class="p-3.5">Stok</th>
                                         <th class="p-3.5 text-right">Aksi</th>
                                     </tr>
@@ -265,9 +266,9 @@
 
         <!-- MODAL: TAMBAH / EDIT PRODUK (CRUD Create & Update) -->
         <div id="product-form-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn">
-                <button onclick="closeProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
-                <div class="p-6 space-y-4">
+            <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden relative animate-fadeIn max-h-[90vh] flex flex-col">
+                <button onclick="closeProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 z-10"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
                     <h3 id="product-form-title" class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Tambah Produk Baru</h3>
                     <form id="product-form" onsubmit="saveProduct(event)" class="space-y-3">
                         <input type="hidden" id="product-form-id">
@@ -288,7 +289,7 @@
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Jual (Rp)</label>
-                                <input type="number" id="product-form-price" required min="0" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                                <input type="number" id="product-form-price" required min="0" oninput="window.updatePromoPreview && window.updatePromoPreview()" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-slate-700 mb-1">Harga Coret (Opsional)</label>
@@ -300,6 +301,42 @@
                             <input type="number" id="product-form-stock" required min="0" step="1" value="0" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="Jumlah stok tersedia">
                             <p class="text-[10px] text-slate-400 mt-1">Produk dengan stok 0 otomatis ditandai "Habis" dan tidak bisa dibeli customer.</p>
                         </div>
+
+                        <!-- PROMO PRODUK -->
+                        <div class="border border-rose-200 bg-rose-50/50 rounded-xl p-3.5 space-y-3">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="product-form-promo-active" onchange="window.onPromoActiveToggle && window.onPromoActiveToggle()" class="w-4 h-4 accent-brand-600">
+                                <span class="text-xs font-bold text-slate-800"><i class="fa-solid fa-tag text-brand-600 me-1"></i> Aktifkan Promo untuk Produk Ini</span>
+                            </label>
+
+                            <div id="product-form-promo-fields" class="hidden space-y-3 pt-1">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Promo</label>
+                                        <select id="product-form-promo-type" onchange="window.updatePromoPreview && window.updatePromoPreview()" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                                            <option value="percentage">Persentase (%)</option>
+                                            <option value="nominal">Nominal (Rp)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nilai Promo</label>
+                                        <input type="number" id="product-form-promo-value" min="0" step="1" oninput="window.updatePromoPreview && window.updatePromoPreview()" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="mis. 20">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Mulai</label>
+                                        <input type="date" id="product-form-promo-start" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Berakhir</label>
+                                        <input type="date" id="product-form-promo-end" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                                    </div>
+                                </div>
+                                <p id="product-form-promo-preview" class="text-[11px] font-semibold text-rose-600 bg-white border border-rose-200 rounded-lg px-2.5 py-2">Isi harga jual & nilai promo untuk melihat pratinjau harga.</p>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="block text-xs font-semibold text-slate-700 mb-1">URL Gambar Produk</label>
                             <input type="url" id="product-form-image" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500" placeholder="https://...">
