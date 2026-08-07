@@ -194,43 +194,127 @@ window.executeGlobalSearch = function(isMobile = false) {
     }
 };
 
+// Menyimpan produk yang sedang ditampilkan di modal detail (dipakai oleh
+// adjustModalQty & addToCartFromModal). Direset saat modal ditutup.
+let currentModalProduct = null;
+
 window.openProductDetail = function(id) {
     const p = state.products.find(item => item.id === id);
     if(!p) return;
 
+    currentModalProduct = p;
+
     const modal = document.getElementById('product-detail-modal');
-    const card = document.getElementById('product-detail-card');
+    const card = document.getElementById('product-modal-card');
     if (!modal || !card) return;
 
     const stock = getProductStock(p);
     const isOutOfStock = stock <= 0;
-    const stockInfo = isFinite(stock)
-        ? `<span class="text-xs font-bold ${isOutOfStock ? 'text-rose-600' : 'text-emerald-600'} bg-${isOutOfStock ? 'rose' : 'emerald'}-50 px-2.5 py-1 rounded-full border border-${isOutOfStock ? 'rose' : 'emerald'}-200/60"><i class="fa-solid ${isOutOfStock ? 'fa-circle-xmark' : 'fa-check'} me-1"></i> ${isOutOfStock ? 'Stok Habis' : `Stok: ${stock}`}</span>`
-        : '';
 
-    card.innerHTML = `
-        <button onclick="document.getElementById('product-detail-modal').classList.add('hidden')" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 z-10 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
-        <div class="aspect-square bg-slate-100">
-            <img src="${p.image}" class="w-full h-full object-cover">
-        </div>
-        <div class="p-6 flex flex-col justify-between space-y-4">
-            <div>
-                <span class="text-xs font-bold text-brand-600 uppercase tracking-wider">${p.brand}</span>
-                <h3 class="text-lg font-bold text-slate-900 mt-1">${p.name}</h3>
-                <p class="text-xs text-slate-500 mt-2 leading-relaxed">${p.description || 'Produk skincare original ber BPOM.'}</p>
-            </div>
-            <div>
-                <div class="flex items-center gap-2 mb-4">
-                    <p class="text-xl font-black text-brand-600">Rp ${p.price.toLocaleString('id-ID')}</p>
-                    ${stockInfo}
-                </div>
-                <button onclick="window.addToCart('${p.id}'); document.getElementById('product-detail-modal').classList.add('hidden')" ${isOutOfStock ? 'disabled' : ''} class="w-full py-3 ${isOutOfStock ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700 text-white'} font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2">
-                    <i class="fa-solid ${isOutOfStock ? 'fa-ban' : 'fa-cart-plus'}"></i> ${isOutOfStock ? 'Stok Habis' : 'Tambah Ke Keranjang'}
-                </button>
-            </div>
-        </div>
-    `;
-    modal.classList.remove('hidden');
+    // Gambar, judul, kategori, harga, deskripsi
+    const imgEl = document.getElementById('modal-product-image');
+    if (imgEl) imgEl.src = p.image;
+    const titleEl = document.getElementById('modal-product-title');
+    if (titleEl) titleEl.textContent = p.name;
+    const stickyTitleEl = document.getElementById('modal-sticky-title-text');
+    if (stickyTitleEl) stickyTitleEl.textContent = p.name;
+    const categoryEl = document.getElementById('modal-product-category');
+    if (categoryEl) categoryEl.textContent = p.category || p.brand || '-';
+    const priceEl = document.getElementById('modal-product-price');
+    if (priceEl) priceEl.textContent = `Rp ${p.price.toLocaleString('id-ID')}`;
+    const descEl = document.getElementById('modal-product-description');
+    if (descEl) descEl.textContent = p.description || 'Produk skincare original ber BPOM.';
+    const ratingEl = document.getElementById('modal-product-rating');
+    if (ratingEl) ratingEl.textContent = p.rating || '5.0';
+    const salesEl = document.getElementById('modal-product-sales');
+    if (salesEl) salesEl.textContent = `(${p.sales || 0} terjual)`;
+
+    // --- BADGE STOK (real-time dari state.products) ---
+    const stockBadge = document.getElementById('modal-product-stock-badge');
+    if (stockBadge) {
+        if (isOutOfStock) {
+            stockBadge.className = 'text-xs text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200/60';
+            stockBadge.innerHTML = '<i class="fa-solid fa-circle-xmark me-1"></i> Stok Habis';
+        } else if (isFinite(stock)) {
+            stockBadge.className = 'text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60';
+            stockBadge.innerHTML = `<i class="fa-solid fa-check me-1"></i> Stok: ${stock}`;
+        } else {
+            stockBadge.className = 'text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60';
+            stockBadge.innerHTML = '<i class="fa-solid fa-check me-1"></i> Stok Tersedia';
+        }
+    }
+
+    // --- SELEKTOR JUMLAH ---
+    const qtyInput = document.getElementById('modal-product-qty');
+    const qtySelector = document.getElementById('modal-qty-selector');
+    if (qtyInput) {
+        qtyInput.value = 1;
+        qtyInput.max = isFinite(stock) ? Math.max(stock, 1) : 99;
+    }
+    if (qtySelector) {
+        qtySelector.classList.toggle('hidden', isOutOfStock);
+    }
+
+    // --- TOMBOL TAMBAH KE KERANJANG ---
+    const addBtn = document.getElementById('modal-add-to-cart-btn');
+    if (addBtn) {
+        if (isOutOfStock) {
+            addBtn.disabled = true;
+            addBtn.className = 'w-full py-3.5 px-5 rounded-2xl bg-slate-200 text-slate-400 cursor-not-allowed font-bold text-xs sm:text-sm flex items-center justify-center gap-2';
+            addBtn.innerHTML = '<i class="fa-solid fa-ban"></i><span>Stock Habis</span>';
+        } else {
+            addBtn.disabled = false;
+            addBtn.className = 'w-full py-3.5 px-5 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs sm:text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 transition-all active:scale-95 flex items-center justify-center gap-2';
+            addBtn.innerHTML = '<i class="fa-solid fa-bag-shopping"></i><span>+ Keranjang</span>';
+        }
+        addBtn.onclick = function() { window.addToCartFromModal(); };
+    }
+
+    // --- BUKA MODAL (animasi fade + slide) ---
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    card.classList.remove('translate-y-8', 'sm:scale-95');
+    document.body.classList.add('overflow-hidden');
+};
+
+// --- TUTUP MODAL (tombol X, klik di luar modal, atau tombol ESC) ---
+window.closeProductDetailModal = function() {
+    const modal = document.getElementById('product-detail-modal');
+    const card = document.getElementById('product-modal-card');
+    if (modal) modal.classList.add('opacity-0', 'pointer-events-none');
+    if (card) card.classList.add('translate-y-8', 'sm:scale-95');
+    document.body.classList.remove('overflow-hidden');
+    currentModalProduct = null;
+};
+
+// --- TUTUP MODAL DENGAN TOMBOL ESC ---
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && currentModalProduct) {
+        window.closeProductDetailModal();
+    }
+});
+
+// --- ATUR JUMLAH DI DALAM MODAL (tombol - / +) ---
+window.adjustModalQty = function(delta) {
+    if (!currentModalProduct) return;
+    const qtyInput = document.getElementById('modal-product-qty');
+    if (!qtyInput) return;
+    const max = parseInt(qtyInput.max) || 99;
+    let val = (parseInt(qtyInput.value) || 1) + delta;
+    val = Math.max(1, Math.min(max, val));
+    qtyInput.value = val;
+};
+
+// --- TAMBAH KE KERANJANG DARI DALAM MODAL (memakai jumlah yang dipilih) ---
+window.addToCartFromModal = function() {
+    if (!currentModalProduct) return;
+    const stock = getProductStock(currentModalProduct);
+    if (stock <= 0) return;
+
+    const qtyInput = document.getElementById('modal-product-qty');
+    const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
+
+    window.addToCart(currentModalProduct.id, qty);
+    window.closeProductDetailModal();
 };
 
 // Beberapa fungsi dipakai lintas modul (mis. admin.js) lewat window

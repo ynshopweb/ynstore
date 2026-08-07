@@ -3,7 +3,8 @@
      class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 transition-all duration-300 opacity-0 pointer-events-none"
      role="dialog"
      aria-modal="true"
-     aria-labelledby="modal-product-title">
+     aria-labelledby="modal-product-title"
+     onclick="if(event.target === this){ window.closeProductDetailModal(); }">
 
     <!-- Modal Card Container -->
     <div id="product-modal-card" 
@@ -64,8 +65,8 @@
                             </span>
                             <div class="flex items-center gap-1 text-amber-400 text-xs font-bold">
                                 <i class="fa-solid fa-star"></i>
-                                <span class="text-slate-700">4.9</span>
-                                <span class="text-slate-400 font-normal">(120+ ulasan)</span>
+                                <span id="modal-product-rating" class="text-slate-700">4.9</span>
+                                <span id="modal-product-sales" class="text-slate-400 font-normal">(120+ terjual)</span>
                             </div>
                         </div>
 
@@ -79,7 +80,7 @@
                             <span id="modal-product-price" class="text-2xl sm:text-3xl font-extrabold text-brand-600">
                                 Rp 0
                             </span>
-                            <span class="text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60">
+                            <span id="modal-product-stock-badge" class="text-xs text-emerald-600 font-bold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60">
                                 <i class="fa-solid fa-check me-1"></i> Stok Tersedia
                             </span>
                         </div>
@@ -98,7 +99,7 @@
 
                     <!-- Action Buttons Desktop & Tablet -->
                     <div class="pt-4 space-y-3 border-t border-slate-100">
-                        <div class="flex items-center gap-3">
+                        <div id="modal-qty-selector" class="flex items-center gap-3">
                             <label for="modal-product-qty" class="text-xs font-bold text-slate-700">Jumlah:</label>
                             <div class="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                                 <button type="button" 

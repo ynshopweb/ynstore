@@ -5,9 +5,11 @@
 // ============================================================
 import { state } from './state.js';
 
-        window.addToCart = function(productId) {
+        window.addToCart = function(productId, qty = 1) {
             const p = state.products.find(item => item.id === productId);
             if (!p) return;
+
+            qty = Math.max(1, parseInt(qty) || 1);
 
             // --- VALIDASI STOK ---
             // Selalu ambil stok TERBARU dari state.products (bukan dari item
@@ -22,15 +24,15 @@ import { state } from './state.js';
             const existing = state.cart.find(item => item.id === productId);
             const currentQtyInCart = existing ? existing.qty : 0;
 
-            if (currentQtyInCart + 1 > stock) {
+            if (currentQtyInCart + qty > stock) {
                 window.showToast(`Stok ${p.name} hanya tersisa ${stock}. Jumlah di keranjang sudah maksimal.`, 'error');
                 return;
             }
 
             if (existing) {
-                existing.qty++;
+                existing.qty += qty;
             } else {
-                state.cart.push({ ...p, qty: 1 });
+                state.cart.push({ ...p, qty });
             }
             window.updateCartUI();
             window.showToast(`${p.name} ditambahkan ke keranjang!`, 'success');
