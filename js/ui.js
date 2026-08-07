@@ -93,9 +93,10 @@ window.toggleMobileNav = function() {
     document.getElementById('mobile-nav-panel').classList.toggle('hidden');
 };
 
-// --- STICKY HEADER SHADOW ON SCROLL ---
-// Header sudah sticky secara default (lihat header.html). Di sini kita
-// hanya menambah/menghapus shadow lembut begitu halaman mulai discroll,
+// --- HEADER SHADOW ON SCROLL ---
+// Header TIDAK lagi sticky/fixed (lihat header.html), jadi header akan
+// ikut bergeser normal saat halaman discroll. Di sini kita hanya
+// menambah/menghapus shadow lembut begitu halaman mulai discroll,
 // dengan transisi halus (class transition-shadow sudah ada di header.html).
 window.addEventListener('scroll', () => {
     const header = document.getElementById('customer-header');
