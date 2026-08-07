@@ -7,6 +7,16 @@ import { collection, onSnapshot, doc, setDoc } from "https://www.gstatic.com/fir
 import { db, appId } from './config.js';
 import { state, INITIAL_PRODUCTS } from './state.js';
 
+// --- HELPER STOK ---
+// Produk lama (dibuat sebelum fitur stok ada) mungkin belum punya field
+// `stock`. Supaya tidak merusak tampilan/fungsi yang sudah berjalan,
+// produk tanpa field stok dianggap TIDAK dibatasi (Infinity) sampai admin
+// mengisi stoknya lewat form Tambah/Edit Produk.
+function getProductStock(product) {
+    return (typeof product?.stock === 'number' && !isNaN(product.stock)) ? product.stock : Infinity;
+}
+window.getProductStock = getProductStock;
+
 // --- FIRESTORE SNAPSHOT PRODUK (real-time) ---
 export function setupProductsSnapshot() {
     const productsCol = collection(db, 'artifacts', appId, 'products');
@@ -63,24 +73,37 @@ function renderLandingPage() {
 }
 
 function createProductCardHTML(product) {
+    const stock = getProductStock(product);
+    const isOutOfStock = stock <= 0;
+    const isLowStock = stock > 0 && stock <= 5;
+
+    let stockBadge = '';
+    if (isOutOfStock) {
+        stockBadge = `<span class="absolute top-2 right-2 bg-slate-800/90 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Stok Habis</span>`;
+    } else if (isLowStock) {
+        stockBadge = `<span class="absolute top-2 right-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Sisa ${stock}</span>`;
+    }
+
     return `
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group ${isOutOfStock ? 'opacity-75' : ''}">
             <div class="relative overflow-hidden aspect-square bg-slate-100 cursor-pointer" onclick="window.openProductDetail('${product.id}')">
                 <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                 ${product.isBestseller ? '<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">HOT</span>' : ''}
+                ${stockBadge}
             </div>
             <div class="p-3.5 flex-1 flex flex-col justify-between space-y-2">
                 <div>
                     <span class="text-[10px] font-bold text-brand-600 uppercase tracking-wider">${product.brand}</span>
                     <h4 onclick="window.openProductDetail('${product.id}')" class="font-bold text-xs text-slate-800 line-clamp-2 hover:text-brand-600 cursor-pointer transition">${product.name}</h4>
+                    ${isFinite(stock) ? `<p class="text-[10px] ${isOutOfStock ? 'text-rose-500 font-bold' : 'text-slate-400'} mt-0.5">${isOutOfStock ? 'Stok habis' : `Stok tersedia: ${stock}`}</p>` : ''}
                 </div>
                 <div>
                     <div class="flex items-center gap-1.5 mb-1">
                         <span class="font-black text-sm text-slate-900">Rp ${product.price.toLocaleString('id-ID')}</span>
                         ${product.originalPrice ? `<span class="text-[10px] text-slate-400 line-through">Rp ${product.originalPrice.toLocaleString('id-ID')}</span>` : ''}
                     </div>
-                    <button onclick="window.addToCart('${product.id}')" class="w-full py-2 bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-1">
-                        <i class="fa-solid fa-cart-plus"></i> Tambah
+                    <button onclick="window.addToCart('${product.id}')" ${isOutOfStock ? 'disabled' : ''} class="w-full py-2 ${isOutOfStock ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white'} font-bold text-xs rounded-xl transition flex items-center justify-center gap-1">
+                        <i class="fa-solid ${isOutOfStock ? 'fa-ban' : 'fa-cart-plus'}"></i> ${isOutOfStock ? 'Stok Habis' : 'Tambah'}
                     </button>
                 </div>
             </div>
@@ -177,6 +200,13 @@ window.openProductDetail = function(id) {
 
     const modal = document.getElementById('product-detail-modal');
     const card = document.getElementById('product-detail-card');
+    if (!modal || !card) return;
+
+    const stock = getProductStock(p);
+    const isOutOfStock = stock <= 0;
+    const stockInfo = isFinite(stock)
+        ? `<span class="text-xs font-bold ${isOutOfStock ? 'text-rose-600' : 'text-emerald-600'} bg-${isOutOfStock ? 'rose' : 'emerald'}-50 px-2.5 py-1 rounded-full border border-${isOutOfStock ? 'rose' : 'emerald'}-200/60"><i class="fa-solid ${isOutOfStock ? 'fa-circle-xmark' : 'fa-check'} me-1"></i> ${isOutOfStock ? 'Stok Habis' : `Stok: ${stock}`}</span>`
+        : '';
 
     card.innerHTML = `
         <button onclick="document.getElementById('product-detail-modal').classList.add('hidden')" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 z-10 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -190,9 +220,12 @@ window.openProductDetail = function(id) {
                 <p class="text-xs text-slate-500 mt-2 leading-relaxed">${p.description || 'Produk skincare original ber BPOM.'}</p>
             </div>
             <div>
-                <p class="text-xl font-black text-brand-600 mb-4">Rp ${p.price.toLocaleString('id-ID')}</p>
-                <button onclick="window.addToCart('${p.id}'); document.getElementById('product-detail-modal').classList.add('hidden')" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-cart-plus"></i> Tambah Ke Keranjang
+                <div class="flex items-center gap-2 mb-4">
+                    <p class="text-xl font-black text-brand-600">Rp ${p.price.toLocaleString('id-ID')}</p>
+                    ${stockInfo}
+                </div>
+                <button onclick="window.addToCart('${p.id}'); document.getElementById('product-detail-modal').classList.add('hidden')" ${isOutOfStock ? 'disabled' : ''} class="w-full py-3 ${isOutOfStock ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-brand-600 hover:bg-brand-700 text-white'} font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2">
+                    <i class="fa-solid ${isOutOfStock ? 'fa-ban' : 'fa-cart-plus'}"></i> ${isOutOfStock ? 'Stok Habis' : 'Tambah Ke Keranjang'}
                 </button>
             </div>
         </div>

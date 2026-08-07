@@ -8,7 +8,25 @@ import { state } from './state.js';
         window.addToCart = function(productId) {
             const p = state.products.find(item => item.id === productId);
             if (!p) return;
+
+            // --- VALIDASI STOK ---
+            // Selalu ambil stok TERBARU dari state.products (bukan dari item
+            // keranjang yang sudah ada), karena state.products diperbarui
+            // realtime lewat Firestore onSnapshot.
+            const stock = window.getProductStock(p);
+            if (stock <= 0) {
+                window.showToast(`${p.name} sedang habis stok.`, 'error');
+                return;
+            }
+
             const existing = state.cart.find(item => item.id === productId);
+            const currentQtyInCart = existing ? existing.qty : 0;
+
+            if (currentQtyInCart + 1 > stock) {
+                window.showToast(`Stok ${p.name} hanya tersisa ${stock}. Jumlah di keranjang sudah maksimal.`, 'error');
+                return;
+            }
+
             if (existing) {
                 existing.qty++;
             } else {
@@ -33,7 +51,11 @@ import { state } from './state.js';
                 if(state.cart.length === 0) {
                     cartContainer.innerHTML = `<div class="text-center py-10 text-slate-400 text-xs"><i class="fa-solid fa-basket-shopping text-3xl mb-2"></i><p>Keranjang belanja kosong.</p></div>`;
                 } else {
-                    cartContainer.innerHTML = state.cart.map(item => `
+                    cartContainer.innerHTML = state.cart.map(item => {
+                        const liveProduct = state.products.find(p => p.id === item.id);
+                        const stock = liveProduct ? window.getProductStock(liveProduct) : Infinity;
+                        const atMaxStock = item.qty >= stock;
+                        return `
                         <div class="flex items-center gap-3 pt-3">
                             <img src="${item.image}" class="w-12 h-12 rounded-lg object-cover bg-slate-100">
                             <div class="flex-1">
@@ -42,11 +64,12 @@ import { state } from './state.js';
                                 <div class="flex items-center gap-2 mt-1">
                                     <button onclick="window.changeCartQty('${item.id}', -1)" class="w-5 h-5 bg-slate-200 text-slate-700 rounded flex items-center justify-center font-bold text-xs">-</button>
                                     <span class="text-xs font-bold">${item.qty}</span>
-                                    <button onclick="window.changeCartQty('${item.id}', 1)" class="w-5 h-5 bg-slate-200 text-slate-700 rounded flex items-center justify-center font-bold text-xs">+</button>
+                                    <button onclick="window.changeCartQty('${item.id}', 1)" ${atMaxStock ? 'disabled title="Stok maksimal tercapai"' : ''} class="w-5 h-5 ${atMaxStock ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-slate-200 text-slate-700'} rounded flex items-center justify-center font-bold text-xs">+</button>
+                                    ${isFinite(stock) ? `<span class="text-[10px] text-slate-400">Stok: ${stock}</span>` : ''}
                                 </div>
                             </div>
                         </div>
-                    `).join('');
+                    `;}).join('');
                 }
             }
         }
@@ -54,6 +77,16 @@ import { state } from './state.js';
         window.changeCartQty = function(id, delta) {
             const item = state.cart.find(i => i.id === id);
             if (item) {
+                // --- VALIDASI STOK saat menambah jumlah (+) ---
+                if (delta > 0) {
+                    const liveProduct = state.products.find(p => p.id === id);
+                    const stock = liveProduct ? window.getProductStock(liveProduct) : Infinity;
+                    if (item.qty + delta > stock) {
+                        window.showToast(`Stok ${item.name} hanya tersisa ${stock}.`, 'error');
+                        return;
+                    }
+                }
+
                 item.qty += delta;
                 if (item.qty <= 0) {
                     state.cart = state.cart.filter(i => i.id !== id);
@@ -111,15 +144,22 @@ import { state } from './state.js';
             if(totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
 
             if (container) {
-                container.innerHTML = state.cart.map(i => `
-                    <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-brand-600">${i.qty}x</span>
-                            <span class="text-slate-700 line-clamp-1 max-w-[150px]">${i.name}</span>
+                container.innerHTML = state.cart.map(i => {
+                    const liveProduct = state.products.find(p => p.id === i.id);
+                    const stock = liveProduct ? window.getProductStock(liveProduct) : Infinity;
+                    const overStock = i.qty > stock;
+                    return `
+                    <div class="text-xs">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-brand-600">${i.qty}x</span>
+                                <span class="text-slate-700 line-clamp-1 max-w-[150px]">${i.name}</span>
+                            </div>
+                            <span class="font-bold text-slate-900">Rp ${(i.price * i.qty).toLocaleString('id-ID')}</span>
                         </div>
-                        <span class="font-bold text-slate-900">Rp ${(i.price * i.qty).toLocaleString('id-ID')}</span>
+                        ${overStock ? `<p class="text-rose-500 font-semibold mt-0.5">Stok tersisa hanya ${stock}, kurangi jumlah di keranjang.</p>` : ''}
                     </div>
-                `).join('');
+                `;}).join('');
             }
             window.renderTimeSlots();
         }

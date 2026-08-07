@@ -3,7 +3,7 @@
 // Mengelola form checkout, slot jam pengambilan toko (pick up),
 // submit pesanan ke Firestore, serta pengunggahan bukti pembayaran QRIS.
 // ============================================================
-import { doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { doc, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { db, appId } from './config.js';
 import { state } from './state.js';
 
@@ -154,9 +154,63 @@ export async function handleCheckoutSubmit(e) {
         createdAt: Date.now()
     };
 
+    // Tombol submit dinonaktifkan sementara supaya tidak diklik dobel
+    // (mengurangi risiko duplikat submit dari sisi UI).
+    const submitBtn = document.getElementById('btn-submit-checkout');
+    if (submitBtn) submitBtn.disabled = true;
+
     try {
-        await setDoc(doc(db, 'artifacts', appId, 'orders', orderId), orderData);
-        
+        // --- TRANSAKSI ATOMIK: VALIDASI STOK TERBARU + BUAT PESANAN + KURANGI STOK ---
+        // Semua dilakukan dalam SATU Firestore transaction supaya:
+        // 1) Stok yang divalidasi selalu yang PALING BARU (dibaca ulang di
+        //    dalam transaksi, bukan dari cache state.cart/state.products).
+        // 2) Pesanan hanya dibuat & stok hanya berkurang jika SEMUA item
+        //    di keranjang benar-benar cukup stoknya (all-or-nothing).
+        // 3) Jika ada 2+ pengguna checkout bersamaan untuk produk yang sama,
+        //    Firestore otomatis mendeteksi konflik baca/tulis dan me-retry
+        //    transaksi ini, sehingga stok TIDAK PERNAH menjadi minus.
+        await runTransaction(db, async (transaction) => {
+            const productRefs = state.cart.map(item => doc(db, 'artifacts', appId, 'products', item.id));
+
+            // 1. BACA seluruh dokumen produk yang relevan (harus dilakukan
+            //    sebelum ada operasi tulis apa pun di transaksi Firestore).
+            const productSnaps = await Promise.all(productRefs.map(ref => transaction.get(ref)));
+
+            // 2. VALIDASI stok terbaru untuk setiap item di keranjang.
+            const insufficient = [];
+            productSnaps.forEach((snap, idx) => {
+                const cartItem = state.cart[idx];
+                if (!snap.exists()) {
+                    insufficient.push(`${cartItem.name} (produk tidak ditemukan)`);
+                    return;
+                }
+                const data = snap.data();
+                const currentStock = (typeof data.stock === 'number') ? data.stock : Infinity;
+                if (currentStock < cartItem.qty) {
+                    insufficient.push(`${cartItem.name} (sisa stok: ${isFinite(currentStock) ? currentStock : '-'})`);
+                }
+            });
+
+            if (insufficient.length > 0) {
+                throw new Error(`Stok tidak mencukupi untuk: ${insufficient.join(', ')}. Silakan sesuaikan jumlah di keranjang.`);
+            }
+
+            // 3. TULIS: kurangi stok tiap produk (hanya jika field stock ada
+            //    & berupa angka — produk lama tanpa field stok tidak diubah)
+            //    lalu buat dokumen pesanan.
+            productSnaps.forEach((snap, idx) => {
+                const cartItem = state.cart[idx];
+                const data = snap.data();
+                if (typeof data.stock === 'number') {
+                    const newStock = data.stock - cartItem.qty;
+                    transaction.update(productRefs[idx], { stock: Math.max(0, newStock) });
+                }
+            });
+
+            const orderRef = doc(db, 'artifacts', appId, 'orders', orderId);
+            transaction.set(orderRef, orderData);
+        });
+
         // Simpan data pesanan saat ini di memori state
         state.currentOrderPayment = orderData;
 
@@ -187,7 +241,11 @@ export async function handleCheckoutSubmit(e) {
         console.error("Error creating order:", err);
         if (typeof window.showToast === 'function') {
             window.showToast('Gagal membuat pesanan: ' + err.message, 'error');
+        } else {
+            alert('Gagal membuat pesanan: ' + err.message);
         }
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 

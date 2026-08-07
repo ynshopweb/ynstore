@@ -129,7 +129,19 @@ function renderAdminProductsTable() {
     const tbody = document.getElementById('admin-products-tbody');
     if(!tbody) return;
 
-    tbody.innerHTML = state.products.map(p => `
+    tbody.innerHTML = state.products.map(p => {
+        const stock = window.getProductStock ? window.getProductStock(p) : (typeof p.stock === 'number' ? p.stock : Infinity);
+        let stockBadge;
+        if (!isFinite(stock)) {
+            stockBadge = `<span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px]">Belum diatur</span>`;
+        } else if (stock <= 0) {
+            stockBadge = `<span class="bg-rose-900 text-rose-300 px-2 py-0.5 rounded text-[10px]">Habis</span>`;
+        } else if (stock <= 5) {
+            stockBadge = `<span class="bg-amber-900 text-amber-300 px-2 py-0.5 rounded text-[10px]">Sisa ${stock}</span>`;
+        } else {
+            stockBadge = `<span class="bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded text-[10px]">${stock} pcs</span>`;
+        }
+        return `
         <tr>
             <td class="p-3.5 flex items-center gap-2">
                 <img src="${p.image}" class="w-8 h-8 rounded object-cover">
@@ -137,13 +149,13 @@ function renderAdminProductsTable() {
             </td>
             <td class="p-3.5">${p.brand} / ${p.category}</td>
             <td class="p-3.5 font-bold text-rose-400">Rp ${p.price.toLocaleString('id-ID')}</td>
-            <td class="p-3.5"><span class="bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded text-[10px]">Tersedia</span></td>
+            <td class="p-3.5">${stockBadge}</td>
             <td class="p-3.5 text-right space-x-1">
-                <button onclick='window.editProduct(${JSON.stringify(p.id)})' class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="window.deleteProduct('${p.id}')" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded"><i class="fa-solid fa-trash"></i></button>
+                <button onclick='window.editProduct(${JSON.stringify(p.id)})' class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded" title="Edit Produk & Stok"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="window.deleteProduct('${p.id}')" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded" title="Hapus Produk"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
-    `).join('');
+    `;}).join('');
 }
 
 window.deleteProduct = async function(productId) {
@@ -175,6 +187,7 @@ window.editProduct = function(productId) {
     document.getElementById('product-form-original-price').value = p.originalPrice || '';
     document.getElementById('product-form-image').value = p.image || '';
     document.getElementById('product-form-description').value = p.description || '';
+    document.getElementById('product-form-stock').value = (typeof p.stock === 'number') ? p.stock : 0;
 
     document.getElementById('product-form-title').textContent = 'Edit Produk';
     document.getElementById('product-form-modal').classList.remove('hidden');
@@ -196,6 +209,7 @@ window.saveProduct = async function(e) {
         originalPrice: parseInt(document.getElementById('product-form-original-price').value) || null,
         image: document.getElementById('product-form-image').value,
         description: document.getElementById('product-form-description').value,
+        stock: Math.max(0, parseInt(document.getElementById('product-form-stock').value) || 0),
         rating: 5,
         sales: 0,
         isBestseller: false,
