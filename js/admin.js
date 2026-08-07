@@ -16,14 +16,25 @@ import { db, appId } from './config.js';
 import { state } from './state.js';
 
 window.switchAdminTab = function(tab) {
+    // --- GUARD KHUSUS: tab "Laporan Penjualan" hanya untuk admin ---
+    // (lihat js/reports.js untuk penjelasan lebih lengkap soal proteksi
+    // akses laporan). Tab admin lain tidak diubah perilakunya.
+    if (tab === 'laporan' && !(state.userProfile && state.userProfile.role === 'admin')) {
+        if (typeof window.showToast === 'function') {
+            window.showToast('Akses ditolak. Laporan penjualan hanya untuk admin.', 'error');
+        }
+        return;
+    }
+
     document.getElementById('admin-subview-dashboard').classList.add('hidden');
     document.getElementById('admin-subview-orders').classList.add('hidden');
     document.getElementById('admin-subview-products').classList.add('hidden');
     document.getElementById('admin-subview-settings').classList.add('hidden');
+    document.getElementById('admin-subview-laporan').classList.add('hidden');
 
     document.getElementById(`admin-subview-${tab}`).classList.remove('hidden');
 
-    ['dash', 'orders', 'products', 'settings'].forEach(t => {
+    ['dash', 'orders', 'products', 'settings', 'laporan'].forEach(t => {
         const btn = document.getElementById(`adm-tab-${t}`);
         if (btn) btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700';
     });
@@ -34,6 +45,7 @@ window.switchAdminTab = function(tab) {
     if(tab === 'dashboard') window.renderAdminDashboard();
     if(tab === 'orders') window.renderAdminOrdersTable();
     if(tab === 'products') window.renderAdminProductsTable();
+    if(tab === 'laporan' && typeof window.initSalesReportTab === 'function') window.initSalesReportTab();
 };
 
 function renderAdminDashboard() {

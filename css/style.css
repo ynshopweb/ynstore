@@ -78,3 +78,26 @@ body {
         .toast-success { border-left: 4px solid #10b981; }
         .toast-error { border-left: 4px solid #ef4444; }
         .toast-info { border-left: 4px solid #3b82f6; }
+
+        /* ============================================================
+           CETAK LAPORAN PENJUALAN (Admin)
+           Saat window.print() dipanggil, sembunyikan seluruh halaman
+           kecuali area #laporan-print-area. Elemen dengan class
+           `.no-print` (filter periode, tombol aksi, dsb) juga selalu
+           disembunyikan dari hasil cetak/PDF.
+           ============================================================ */
+        @media print {
+            body * { visibility: hidden; }
+            #laporan-print-area, #laporan-print-area * { visibility: visible; }
+            #laporan-print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+                background: white !important;
+                color: #111827 !important;
+            }
+            .no-print { display: none !important; }
+        }

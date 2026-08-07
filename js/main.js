@@ -22,6 +22,7 @@ import './checkout.js';
 import { setupOrdersSnapshot } from './orders.js';
 import './admin.js';
 import { setupPaymentSettingsSnapshot } from './settings.js';
+import './reports.js';
 
 // --- PARTIAL LOADER ---
 async function loadPartial(el) {
