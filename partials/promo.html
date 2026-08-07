@@ -1,27 +1,27 @@
             <section id="view-promo" class="view-page hidden animate-fadeIn max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-                <div class="bg-gradient-to-r from-amber-500 to-rose-500 rounded-3xl p-6 sm:p-8 text-white shadow-lg">
-                    <span class="bg-black/20 text-amber-100 text-[11px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
-                        <i class="fa-solid fa-bolt me-1"></i> Promo Aktif
-                    </span>
-                    <h1 class="text-2xl sm:text-3xl font-extrabold mt-3">Promo Spesial YN Shop</h1>
-                    <p class="text-amber-100 text-xs sm:text-sm mt-1 max-w-xl">
-                        Semua produk di halaman ini sedang didiskon oleh admin. Harga promo dihitung otomatis dan
-                        akan kembali ke harga normal begitu masa promo berakhir — jadi buruan sebelum kehabisan!
-                    </p>
+                <div class="bg-gradient-to-r from-amber-500 to-rose-600 rounded-3xl p-6 sm:p-8 text-white shadow-lg relative overflow-hidden">
+                    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                    <div class="relative z-10 space-y-2">
+                        <span class="bg-black/20 text-amber-100 text-[11px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5">
+                            <i class="fa-solid fa-bolt"></i> Promo Spesial
+                        </span>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold">Semua Produk Promo YN Shop</h1>
+                        <p class="text-amber-50 text-xs sm:text-sm max-w-xl">Daftar ini otomatis diperbarui — begitu admin mengaktifkan promo pada suatu produk, produknya langsung muncul di sini selama periode promo masih berlaku.</p>
+                    </div>
                 </div>
 
-                <div>
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold text-slate-900">Produk Sedang Promo</h2>
-                        <span id="promo-count-label" class="text-xs font-semibold text-slate-500">0 produk</span>
-                    </div>
+                <div class="flex items-center justify-between">
+                    <span id="promo-count-label" class="text-xs font-bold text-slate-500">0 Produk Promo</span>
+                </div>
 
-                    <div id="promo-products-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6"></div>
+                <div id="promo-products-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 sm:gap-6"></div>
 
-                    <div id="promo-empty-state" class="hidden text-center py-16 text-slate-400">
-                        <i class="fa-solid fa-tags text-4xl mb-3"></i>
-                        <p class="text-sm font-semibold">Belum ada promo yang aktif saat ini.</p>
-                        <p class="text-xs mt-1">Pantau terus halaman ini, promo baru bisa muncul kapan saja!</p>
-                    </div>
+                <div id="promo-empty-state" class="hidden text-center py-16 text-slate-400">
+                    <i class="fa-solid fa-tags text-4xl mb-3"></i>
+                    <p class="text-sm font-semibold">Belum ada promo yang sedang berlangsung.</p>
+                    <p class="text-xs mt-1">Pantau terus halaman ini, promo menarik akan segera hadir!</p>
+                    <button onclick="window.navigateTo('products')" class="mt-4 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl transition">
+                        Lihat Semua Produk
+                    </button>
                 </div>
             </section>

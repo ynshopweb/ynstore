@@ -6,6 +6,7 @@
 import { collection, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { db, appId } from './config.js';
 import { state, INITIAL_PRODUCTS } from './state.js';
+import { isPromoRunning, renderPromoBadgeHTML, renderPromoPriceBlockHTML } from './promo.js';
 
 // --- HELPER STOK ---
 // Produk lama (dibuat sebelum fitur stok ada) mungkin belum punya field
@@ -16,103 +17,6 @@ function getProductStock(product) {
     return (typeof product?.stock === 'number' && !isNaN(product.stock)) ? product.stock : Infinity;
 }
 window.getProductStock = getProductStock;
-
-// --- HELPER PROMO PRODUK ---
-// Promo BUKAN data terpisah — ia melekat pada setiap produk lewat field
-// `promo` di dokumen produk itu sendiri:
-//   promo: { active: true, type: 'percentage'|'nominal', value: number,
-//             startDate: <ms epoch>, endDate: <ms epoch> }
-// Produk tanpa field `promo` (semua produk lama) diperlakukan persis
-// seperti sebelumnya (tidak ada perubahan tampilan/harga sama sekali).
-//
-// Fungsi ini adalah SATU-SATUNYA sumber kebenaran untuk menghitung harga
-// final sebuah produk saat ini juga, dipakai bersama oleh: kartu produk,
-// modal detail, halaman Promo, beranda, keranjang, DAN transaksi checkout
-// (checkout membaca ulang dokumen produk & memanggil fungsi ini lagi
-// dengan data TERBARU, supaya harga promo yang dipakai selalu yang masih
-// berlaku persis pada detik checkout dilakukan).
-function getPromoInfo(product) {
-    const originalPrice = product?.price || 0;
-    const promo = product?.promo;
-
-    const result = {
-        active: false,
-        type: promo?.type === 'nominal' ? 'nominal' : 'percentage',
-        value: promo?.value || 0,
-        originalPrice,
-        finalPrice: originalPrice,
-        discountAmount: 0,
-        startDate: promo?.startDate || null,
-        endDate: promo?.endDate || null,
-        msRemaining: null
-    };
-
-    if (!promo || !promo.active) return result;
-
-    const now = Date.now();
-    if (promo.startDate && now < promo.startDate) return result; // promo belum mulai
-    if (promo.endDate && now > promo.endDate) return result; // promo sudah berakhir -> harga kembali normal
-
-    let finalPrice = originalPrice;
-    if (result.type === 'nominal') {
-        finalPrice = Math.max(0, originalPrice - (promo.value || 0));
-    } else {
-        const pct = Math.min(Math.max(promo.value || 0, 0), 100);
-        finalPrice = Math.round(originalPrice - (originalPrice * pct / 100));
-    }
-
-    result.active = true;
-    result.finalPrice = finalPrice;
-    result.discountAmount = originalPrice - finalPrice;
-    result.msRemaining = promo.endDate ? (promo.endDate - now) : null;
-    return result;
-}
-window.getPromoInfo = getPromoInfo;
-
-// --- FORMAT SISA WAKTU COUNTDOWN PROMO ("2h 05:23:11" / "05:23:11") ---
-function formatPromoCountdown(ms) {
-    if (ms === null || ms === undefined || ms <= 0) return 'Promo berakhir';
-    const totalSec = Math.floor(ms / 1000);
-    const days = Math.floor(totalSec / 86400);
-    const hours = Math.floor((totalSec % 86400) / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-    const pad2 = n => String(n).padStart(2, '0');
-    return days > 0 ? `${days}h ${pad2(hours)}:${pad2(mins)}:${pad2(secs)}` : `${pad2(hours)}:${pad2(mins)}:${pad2(secs)}`;
-}
-window.formatPromoCountdown = formatPromoCountdown;
-
-// --- TICKER GLOBAL UNTUK COUNTDOWN PROMO ---
-// Satu interval global (1x per detik) yang meng-update SEMUA elemen
-// countdown promo yang sedang tampil di layar (kartu produk, modal detail,
-// halaman Promo) lewat atribut `data-promo-end`, tanpa perlu render ulang
-// seluruh grid setiap detik. Kalau ada promo yang baru saja berakhir saat
-// ticker jalan, grid terkait di-refresh sekali supaya harga & badge-nya
-// otomatis kembali normal.
-let promoTickerStarted = false;
-function startPromoCountdownTicker() {
-    if (promoTickerStarted) return;
-    promoTickerStarted = true;
-    setInterval(() => {
-        let anyExpired = false;
-        document.querySelectorAll('[data-promo-end]').forEach(el => {
-            const end = parseInt(el.getAttribute('data-promo-end'), 10);
-            if (!end) return;
-            const remaining = end - Date.now();
-            if (remaining <= 0) {
-                anyExpired = true;
-                return;
-            }
-            el.textContent = formatPromoCountdown(remaining);
-        });
-        if (anyExpired) {
-            if (typeof window.renderProductsCatalog === 'function') window.renderProductsCatalog();
-            if (typeof window.renderLandingPage === 'function') window.renderLandingPage();
-            if (typeof window.renderPromoPage === 'function') window.renderPromoPage();
-        }
-    }, 1000);
-}
-startPromoCountdownTicker();
 
 // --- FIRESTORE SNAPSHOT PRODUK (real-time) ---
 export function setupProductsSnapshot() {
@@ -144,8 +48,8 @@ export function setupProductsSnapshot() {
 function renderLandingPage() {
     const categoriesGrid = document.getElementById('landing-categories-grid');
     const bestsellerGrid = document.getElementById('bestseller-products-grid');
-    const promoSection = document.getElementById('landing-promo-section');
-    const promoGrid = document.getElementById('landing-promo-grid');
+    const promoSection = document.getElementById('home-promo-section');
+    const promoGrid = document.getElementById('home-promo-products-grid');
 
     const categories = [
         { name: 'Moisturizer', icon: 'fa-droplet', color: 'bg-blue-50 text-blue-600' },
@@ -172,29 +76,34 @@ function renderLandingPage() {
         bestsellerGrid.innerHTML = bests.map(p => window.createProductCardHTML(p)).join('');
     }
 
-    // --- PRODUK LAGI PROMO (Beranda) — otomatis dari produk yang promonya aktif ---
+    // --- PRODUK PROMO DI BERANDA ---
+    // Muncul otomatis begitu ada produk dengan promo yang sedang berlangsung,
+    // dan hilang otomatis begitu tidak ada lagi promo aktif.
     if (promoGrid && promoSection) {
-        const promoProducts = state.products.filter(p => getPromoInfo(p).active).slice(0, 5);
-        if (promoProducts.length > 0) {
-            promoSection.classList.remove('hidden');
-            promoGrid.innerHTML = promoProducts.map(p => window.createProductCardHTML(p)).join('');
-        } else {
+        const promoProducts = state.products.filter(p => isPromoRunning(p)).slice(0, 5);
+        if (promoProducts.length === 0) {
             promoSection.classList.add('hidden');
             promoGrid.innerHTML = '';
+        } else {
+            promoSection.classList.remove('hidden');
+            promoGrid.innerHTML = promoProducts.map(p => window.createProductCardHTML(p)).join('');
         }
     }
 }
 
-// --- HALAMAN PROMO — otomatis menampilkan SEMUA produk dengan promo aktif ---
+// --- HALAMAN PROMO ---
+// Menampilkan SEMUA produk yang promonya sedang berlangsung saat ini.
+// Tidak ada data promo terpisah — daftar ini murni hasil filter dari
+// state.products berdasarkan status promo real-time tiap produk.
 function renderPromoPage() {
     const grid = document.getElementById('promo-products-grid');
     const emptyState = document.getElementById('promo-empty-state');
     const countLabel = document.getElementById('promo-count-label');
     if (!grid) return;
 
-    const promoProducts = state.products.filter(p => getPromoInfo(p).active);
+    const promoProducts = state.products.filter(p => isPromoRunning(p));
 
-    if (countLabel) countLabel.textContent = `${promoProducts.length} produk`;
+    if (countLabel) countLabel.textContent = `${promoProducts.length} Produk Promo`;
 
     if (promoProducts.length === 0) {
         grid.innerHTML = '';
@@ -205,13 +114,11 @@ function renderPromoPage() {
     if (emptyState) emptyState.classList.add('hidden');
     grid.innerHTML = promoProducts.map(p => window.createProductCardHTML(p)).join('');
 }
-window.renderPromoPage = renderPromoPage;
 
 function createProductCardHTML(product) {
     const stock = getProductStock(product);
     const isOutOfStock = stock <= 0;
     const isLowStock = stock > 0 && stock <= 5;
-    const promoInfo = getPromoInfo(product);
 
     let stockBadge = '';
     if (isOutOfStock) {
@@ -220,41 +127,18 @@ function createProductCardHTML(product) {
         stockBadge = `<span class="absolute top-2 right-2 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Sisa ${stock}</span>`;
     }
 
-    // --- BADGE PROMO (pojok kiri, menggantikan badge HOT saat promo aktif) ---
-    let cornerBadge = '';
-    if (promoInfo.active) {
-        const promoLabel = promoInfo.type === 'nominal'
-            ? `-Rp${promoInfo.value.toLocaleString('id-ID')}`
-            : `-${promoInfo.value}%`;
-        cornerBadge = `<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1"><i class="fa-solid fa-tag"></i> PROMO ${promoLabel}</span>`;
-    } else if (product.isBestseller) {
-        cornerBadge = '<span class="absolute top-2 left-2 bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase">HOT</span>';
-    }
-
-    // --- BLOK HARGA (harga promo vs harga normal) ---
-    let priceBlock;
-    if (promoInfo.active) {
-        priceBlock = `
-            <div class="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                <span class="font-black text-sm text-rose-600">Rp ${promoInfo.finalPrice.toLocaleString('id-ID')}</span>
-                <span class="text-[10px] text-slate-400 line-through">Rp ${promoInfo.originalPrice.toLocaleString('id-ID')}</span>
-            </div>
-            ${promoInfo.endDate ? `<p class="text-[9px] font-bold text-rose-500 mb-1"><i class="fa-regular fa-clock me-0.5"></i>Berakhir: <span data-promo-end="${promoInfo.endDate}">${formatPromoCountdown(promoInfo.msRemaining)}</span></p>` : ''}
-        `;
-    } else {
-        priceBlock = `
-            <div class="flex items-center gap-1.5 mb-1">
-                <span class="font-black text-sm text-slate-900">Rp ${product.price.toLocaleString('id-ID')}</span>
-                ${product.originalPrice ? `<span class="text-[10px] text-slate-400 line-through">Rp ${product.originalPrice.toLocaleString('id-ID')}</span>` : ''}
-            </div>
-        `;
-    }
+    // Badge di pojok kiri atas: HOT (bestseller) & PROMO ditumpuk vertikal
+    // supaya tidak saling tumpang tindih.
+    const topLeftBadges = `
+        ${product.isBestseller ? '<span class="bg-rose-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase w-fit">HOT</span>' : ''}
+        ${renderPromoBadgeHTML(product)}
+    `;
 
     return `
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group ${isOutOfStock ? 'opacity-75' : ''}">
             <div class="relative overflow-hidden aspect-square bg-slate-100 cursor-pointer" onclick="window.openProductDetail('${product.id}')">
                 <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                ${cornerBadge}
+                <div class="absolute top-2 left-2 z-10 flex flex-col items-start gap-1">${topLeftBadges}</div>
                 ${stockBadge}
             </div>
             <div class="p-3.5 flex-1 flex flex-col justify-between space-y-2">
@@ -264,8 +148,8 @@ function createProductCardHTML(product) {
                     ${isFinite(stock) ? `<p class="text-[10px] ${isOutOfStock ? 'text-rose-500 font-bold' : 'text-slate-400'} mt-0.5">${isOutOfStock ? 'Stok habis' : `Stok tersedia: ${stock}`}</p>` : ''}
                 </div>
                 <div>
-                    ${priceBlock}
-                    <button onclick="window.addToCart('${product.id}')" ${isOutOfStock ? 'disabled' : ''} class="w-full py-2 ${isOutOfStock ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white'} font-bold text-xs rounded-xl transition flex items-center justify-center gap-1">
+                    ${renderPromoPriceBlockHTML(product, { priceSize: 'text-sm' })}
+                    <button onclick="window.addToCart('${product.id}')" ${isOutOfStock ? 'disabled' : ''} class="w-full py-2 mt-1 ${isOutOfStock ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white'} font-bold text-xs rounded-xl transition flex items-center justify-center gap-1">
                         <i class="fa-solid ${isOutOfStock ? 'fa-ban' : 'fa-cart-plus'}"></i> ${isOutOfStock ? 'Stok Habis' : 'Tambah'}
                     </button>
                 </div>
@@ -373,7 +257,6 @@ window.openProductDetail = function(id) {
 
     const stock = getProductStock(p);
     const isOutOfStock = stock <= 0;
-    const promoInfo = getPromoInfo(p);
 
     // Gambar, judul, kategori, harga, deskripsi
     const imgEl = document.getElementById('modal-product-image');
@@ -384,44 +267,56 @@ window.openProductDetail = function(id) {
     if (stickyTitleEl) stickyTitleEl.textContent = p.name;
     const categoryEl = document.getElementById('modal-product-category');
     if (categoryEl) categoryEl.textContent = p.category || p.brand || '-';
+
+    // --- HARGA & PROMO ---
+    const promoInfo = window.getPromoInfo(p);
+    const priceEl = document.getElementById('modal-product-price');
+    const originalPriceEl = document.getElementById('modal-product-original-price');
+    const promoBadgeEl = document.getElementById('modal-promo-badge');
+    const promoCountdownWrap = document.getElementById('modal-promo-countdown-wrap');
+    const promoCountdownEl = document.getElementById('modal-promo-countdown');
+
+    if (priceEl) {
+        priceEl.textContent = `Rp ${promoInfo.promoPrice.toLocaleString('id-ID')}`;
+        priceEl.className = promoInfo.active
+            ? 'text-2xl sm:text-3xl font-extrabold text-rose-600'
+            : 'text-2xl sm:text-3xl font-extrabold text-brand-600';
+    }
+    if (originalPriceEl) {
+        if (promoInfo.active) {
+            originalPriceEl.textContent = `Rp ${promoInfo.originalPrice.toLocaleString('id-ID')}`;
+            originalPriceEl.classList.remove('hidden');
+        } else {
+            originalPriceEl.classList.add('hidden');
+        }
+    }
+    if (promoBadgeEl) {
+        if (promoInfo.active) {
+            promoBadgeEl.innerHTML = `<i class="fa-solid fa-bolt me-1"></i> PROMO ${promoInfo.discountLabel}`;
+            promoBadgeEl.classList.remove('hidden');
+        } else {
+            promoBadgeEl.classList.add('hidden');
+        }
+    }
+    if (promoCountdownWrap && promoCountdownEl) {
+        if (promoInfo.active) {
+            promoCountdownEl.setAttribute('data-promo-end', promoInfo.endDate);
+            promoCountdownEl.textContent = window.formatPromoCountdown
+                ? window.formatPromoCountdown(new Date(promoInfo.endDate).getTime() - Date.now())
+                : '';
+            promoCountdownWrap.classList.remove('hidden');
+        } else {
+            promoCountdownEl.removeAttribute('data-promo-end');
+            promoCountdownWrap.classList.add('hidden');
+        }
+    }
+
     const descEl = document.getElementById('modal-product-description');
     if (descEl) descEl.textContent = p.description || 'Produk skincare original ber BPOM.';
     const ratingEl = document.getElementById('modal-product-rating');
     if (ratingEl) ratingEl.textContent = p.rating || '5.0';
     const salesEl = document.getElementById('modal-product-sales');
     if (salesEl) salesEl.textContent = `(${p.sales || 0} terjual)`;
-
-    // --- HARGA & PROMO ---
-    const priceEl = document.getElementById('modal-product-price');
-    const origPriceEl = document.getElementById('modal-product-original-price');
-    const promoBadgeEl = document.getElementById('modal-promo-badge');
-    const promoCountdownWrap = document.getElementById('modal-promo-countdown-wrap');
-    if (promoInfo.active) {
-        if (priceEl) { priceEl.textContent = `Rp ${promoInfo.finalPrice.toLocaleString('id-ID')}`; priceEl.className = 'text-2xl sm:text-3xl font-extrabold text-rose-600'; }
-        if (origPriceEl) { origPriceEl.textContent = `Rp ${promoInfo.originalPrice.toLocaleString('id-ID')}`; origPriceEl.classList.remove('hidden'); }
-        if (promoBadgeEl) {
-            const label = promoInfo.type === 'nominal' ? `-Rp${promoInfo.value.toLocaleString('id-ID')}` : `-${promoInfo.value}%`;
-            promoBadgeEl.innerHTML = `<i class="fa-solid fa-tag me-1"></i>PROMO ${label}`;
-            promoBadgeEl.classList.remove('hidden');
-        }
-        if (promoCountdownWrap) {
-            if (promoInfo.endDate) {
-                const span = promoCountdownWrap.querySelector('[data-promo-end]');
-                if (span) {
-                    span.setAttribute('data-promo-end', promoInfo.endDate);
-                    span.textContent = formatPromoCountdown(promoInfo.msRemaining);
-                }
-                promoCountdownWrap.classList.remove('hidden');
-            } else {
-                promoCountdownWrap.classList.add('hidden');
-            }
-        }
-    } else {
-        if (priceEl) { priceEl.textContent = `Rp ${p.price.toLocaleString('id-ID')}`; priceEl.className = 'text-2xl sm:text-3xl font-extrabold text-brand-600'; }
-        if (origPriceEl) origPriceEl.classList.add('hidden');
-        if (promoBadgeEl) promoBadgeEl.classList.add('hidden');
-        if (promoCountdownWrap) promoCountdownWrap.classList.add('hidden');
-    }
 
     // --- BADGE STOK (real-time dari state.products) ---
     const stockBadge = document.getElementById('modal-product-stock-badge');
@@ -514,5 +409,6 @@ window.addToCartFromModal = function() {
 // Beberapa fungsi dipakai lintas modul (mis. admin.js) lewat window
 window.renderProductsCatalog = renderProductsCatalog;
 window.renderLandingPage = renderLandingPage;
+window.renderPromoPage = renderPromoPage;
 window.createProductCardHTML = createProductCardHTML;
 window.renderFilterOptions = renderFilterOptions;

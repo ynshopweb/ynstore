@@ -6,6 +6,7 @@
 import { doc, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { db, appId } from './config.js';
 import { state } from './state.js';
+import { getEffectivePrice } from './promo.js';
 
 /**
  * Rendernya daftar slot jam pengambilan pesanan di toko
@@ -137,46 +138,29 @@ export async function handleCheckoutSubmit(e) {
     const randomDigits = Math.floor(1000 + Math.random() * 9000);
     const orderId = `YN-${dateStr}-${randomDigits}`;
 
-    // Bagian pesanan yang TIDAK tergantung harga (data pelanggan, jadwal, dst).
-    // `items` & `totalAmount` SENGAJA belum diisi di sini — keduanya dihitung
-    // ulang di dalam transaksi Firestore di bawah, dari data produk yang
-    // paling baru, supaya harga (termasuk harga PROMO yang masih berlaku)
-    // selalu akurat persis pada detik checkout benar-benar diproses,
-    // bukan dari cache di state.cart yang bisa saja sudah basi (mis. promo
-    // baru saja berakhir, atau baru saja diaktifkan admin).
-    const orderDataBase = {
-        orderId,
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: email,
-        userId: state.user.uid,
-        pickupDate,
-        pickupSlot: slot,
-        notes,
-        status: 'Menunggu Pembayaran',
-        proofImage: null,
-        createdAt: Date.now()
-    };
+    // Dibuat lengkap di dalam transaksi setelah harga & stok tervalidasi
+    // dengan data produk PALING BARU (lihat catatan di bawah).
+    let orderData = null;
 
     // Tombol submit dinonaktifkan sementara supaya tidak diklik dobel
     // (mengurangi risiko duplikat submit dari sisi UI).
     const submitBtn = document.getElementById('btn-submit-checkout');
     if (submitBtn) submitBtn.disabled = true;
 
-    // Diisi di dalam transaksi, dipakai lagi setelah transaksi berhasil
-    // (untuk ditampilkan di halaman pembayaran).
-    let finalOrderData = null;
-
     try {
-        // --- TRANSAKSI ATOMIK: VALIDASI STOK + HITUNG HARGA PROMO TERBARU
-        //     + BUAT PESANAN + KURANGI STOK — semua dalam SATU transaksi ---
+        // --- TRANSAKSI ATOMIK: VALIDASI STOK + HITUNG HARGA PROMO TERBARU + BUAT PESANAN + KURANGI STOK ---
         // Semua dilakukan dalam SATU Firestore transaction supaya:
-        // 1) Stok & HARGA (termasuk promo) yang dipakai selalu yang PALING
-        //    BARU (dibaca ulang di dalam transaksi, bukan dari cache
-        //    state.cart/state.products).
-        // 2) Pesanan hanya dibuat & stok hanya berkurang jika SEMUA item
+        // 1) Stok & status promo yang divalidasi selalu yang PALING BARU
+        //    (dibaca ulang di dalam transaksi, bukan dari cache
+        //    state.cart/state.products yang bisa saja sudah usang).
+        // 2) Harga yang benar-benar ditagihkan adalah harga promo yang
+        //    MASIH BERLAKU pada detik transaksi ini dieksekusi — jika promo
+        //    baru saja berakhir beberapa detik sebelum checkout, harga
+        //    otomatis kembali normal; sebaliknya jika promo baru mulai,
+        //    harga promo otomatis terpakai.
+        // 3) Pesanan hanya dibuat & stok hanya berkurang jika SEMUA item
         //    di keranjang benar-benar cukup stoknya (all-or-nothing).
-        // 3) Jika ada 2+ pengguna checkout bersamaan untuk produk yang sama,
+        // 4) Jika ada 2+ pengguna checkout bersamaan untuk produk yang sama,
         //    Firestore otomatis mendeteksi konflik baca/tulis dan me-retry
         //    transaksi ini, sehingga stok TIDAK PERNAH menjadi minus.
         await runTransaction(db, async (transaction) => {
@@ -186,12 +170,8 @@ export async function handleCheckoutSubmit(e) {
             //    sebelum ada operasi tulis apa pun di transaksi Firestore).
             const productSnaps = await Promise.all(productRefs.map(ref => transaction.get(ref)));
 
-            // 2. VALIDASI stok terbaru untuk setiap item di keranjang, DAN
-            //    hitung harga final (promo-aware) dari data produk terbaru.
+            // 2. VALIDASI stok terbaru untuk setiap item di keranjang.
             const insufficient = [];
-            const computedItems = [];
-            let computedTotal = 0;
-
             productSnaps.forEach((snap, idx) => {
                 const cartItem = state.cart[idx];
                 if (!snap.exists()) {
@@ -202,33 +182,27 @@ export async function handleCheckoutSubmit(e) {
                 const currentStock = (typeof data.stock === 'number') ? data.stock : Infinity;
                 if (currentStock < cartItem.qty) {
                     insufficient.push(`${cartItem.name} (sisa stok: ${isFinite(currentStock) ? currentStock : '-'})`);
-                    return;
                 }
-
-                // Harga final memakai promo aktif TERBARU dari `data` (bukan
-                // dari item keranjang yang mungkin sudah basi).
-                const promoInfo = window.getPromoInfo ? window.getPromoInfo(data) : { finalPrice: data.price, active: false, originalPrice: data.price };
-                const unitPrice = promoInfo.finalPrice;
-
-                computedItems.push({
-                    id: cartItem.id,
-                    name: data.name || cartItem.name,
-                    image: data.image || cartItem.image,
-                    qty: cartItem.qty,
-                    price: unitPrice,
-                    originalPrice: promoInfo.originalPrice,
-                    promoApplied: !!promoInfo.active
-                });
-                computedTotal += unitPrice * cartItem.qty;
             });
 
             if (insufficient.length > 0) {
                 throw new Error(`Stok tidak mencukupi untuk: ${insufficient.join(', ')}. Silakan sesuaikan jumlah di keranjang.`);
             }
 
-            // 3. TULIS: kurangi stok tiap produk (hanya jika field stock ada
+            // 3. HITUNG harga final tiap item dari data produk TERBARU
+            //    (bukan dari state.cart yang bisa saja sudah kedaluwarsa),
+            //    supaya promo yang sedang berlangsung selalu dipakai.
+            const finalItems = productSnaps.map((snap, idx) => {
+                const cartItem = state.cart[idx];
+                const data = snap.data();
+                const unitPrice = getEffectivePrice({ ...data, id: cartItem.id });
+                return { ...cartItem, price: unitPrice, originalPrice: data.price };
+            });
+            const finalTotalAmount = finalItems.reduce((sum, it) => sum + (it.price * it.qty), 0);
+
+            // 4. TULIS: kurangi stok tiap produk (hanya jika field stock ada
             //    & berupa angka — produk lama tanpa field stok tidak diubah)
-            //    lalu buat dokumen pesanan dengan harga yang baru dihitung.
+            //    lalu buat dokumen pesanan dengan harga yang sudah final.
             productSnaps.forEach((snap, idx) => {
                 const cartItem = state.cart[idx];
                 const data = snap.data();
@@ -238,14 +212,28 @@ export async function handleCheckoutSubmit(e) {
                 }
             });
 
-            finalOrderData = { ...orderDataBase, items: computedItems, totalAmount: computedTotal };
+            orderData = {
+                orderId,
+                customerName: name,
+                customerPhone: phone,
+                customerEmail: email,
+                userId: state.user.uid,
+                pickupDate,
+                pickupSlot: slot,
+                notes,
+                items: finalItems,
+                totalAmount: finalTotalAmount,
+                status: 'Menunggu Pembayaran',
+                proofImage: null,
+                createdAt: Date.now()
+            };
 
             const orderRef = doc(db, 'artifacts', appId, 'orders', orderId);
-            transaction.set(orderRef, finalOrderData);
+            transaction.set(orderRef, orderData);
         });
 
         // Simpan data pesanan saat ini di memori state
-        state.currentOrderPayment = finalOrderData;
+        state.currentOrderPayment = orderData;
 
         // Kosongkan keranjang belanja setelah checkout berhasil
         state.cart = [];
@@ -258,7 +246,7 @@ export async function handleCheckoutSubmit(e) {
         const payTotalEl = document.getElementById('pay-total-amount');
 
         if (payOrderNumEl) payOrderNumEl.textContent = orderId;
-        if (payTotalEl) payTotalEl.textContent = `Rp ${finalOrderData.totalAmount.toLocaleString('id-ID')}`;
+        if (payTotalEl) payTotalEl.textContent = `Rp ${orderData.totalAmount.toLocaleString('id-ID')}`;
 
         // Beralih ke halaman pembayaran QRIS
         if (typeof window.navigateTo === 'function') {

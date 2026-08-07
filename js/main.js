@@ -15,6 +15,7 @@
 import './config.js';
 import './state.js';
 import './ui.js';
+import './promo.js';
 import './auth.js';
 import { setupProductsSnapshot } from './products.js';
 import './cart.js';

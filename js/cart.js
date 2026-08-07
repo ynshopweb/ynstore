@@ -2,24 +2,9 @@
 // CART MODULE
 // Tambah/ubah item keranjang, drawer keranjang, dan ringkasan
 // checkout.
-//
-// HARGA & PROMO: Item keranjang TIDAK menyimpan harga final yang kaku.
-// Setiap kali harga perlu ditampilkan (drawer keranjang, ringkasan
-// checkout) kita selalu mengambil data produk TERBARU dari
-// state.products (real-time via Firestore onSnapshot) dan menghitung
-// ulang harga lewat window.getPromoInfo(...).finalPrice. Dengan begitu,
-// kalau promo baru saja aktif/berakhir sementara barang sudah ada di
-// keranjang, harga yang tampil SELALU mengikuti status promo saat ini.
 // ============================================================
 import { state } from './state.js';
-
-// Ambil harga final (promo-aware) yang sedang berlaku untuk sebuah item
-// keranjang, berdasarkan data produk TERBARU di state.products.
-function getLiveUnitPrice(cartItem) {
-    const liveProduct = state.products.find(p => p.id === cartItem.id);
-    if (!liveProduct) return cartItem.price; // fallback jika produk sudah dihapus
-    return window.getPromoInfo ? window.getPromoInfo(liveProduct).finalPrice : liveProduct.price;
-}
+import { getEffectivePrice, getPromoInfo } from './promo.js';
 
         window.addToCart = function(productId, qty = 1) {
             const p = state.products.find(item => item.id === productId);
@@ -54,6 +39,17 @@ function getLiveUnitPrice(cartItem) {
             window.showToast(`${p.name} ditambahkan ke keranjang!`, 'success');
         };
 
+        // --- HARGA ITEM KERANJANG (SELALU HARGA TERKINI) ---
+        // Keranjang tidak pernah memakai harga yang "dibekukan" saat item
+        // ditambahkan. Setiap render selalu mengambil produk TERBARU dari
+        // state.products (realtime Firestore) supaya harga promo yang
+        // sedang berlangsung otomatis terpakai, dan begitu promo berakhir
+        // harga otomatis kembali normal — tanpa perlu refresh halaman.
+        function getCartItemUnitPrice(item) {
+            const liveProduct = state.products.find(p => p.id === item.id);
+            return liveProduct ? getEffectivePrice(liveProduct) : item.price;
+        }
+
         function updateCartUI() {
             const badge = document.getElementById('cart-badge-count');
             const totalQty = state.cart.reduce((sum, item) => sum + item.qty, 0);
@@ -62,9 +58,7 @@ function getLiveUnitPrice(cartItem) {
             const cartContainer = document.getElementById('cart-items-container');
             const cartTotal = document.getElementById('cart-drawer-total');
 
-            // Total keranjang SELALU dihitung dari harga TERBARU (harga promo
-            // yang masih berlaku, atau harga normal jika promo sudah berakhir).
-            const totalAmount = state.cart.reduce((sum, item) => sum + (getLiveUnitPrice(item) * item.qty), 0);
+            const totalAmount = state.cart.reduce((sum, item) => sum + (getCartItemUnitPrice(item) * item.qty), 0);
             if(cartTotal) cartTotal.textContent = `Rp ${totalAmount.toLocaleString('id-ID')}`;
 
             if (cartContainer) {
@@ -75,17 +69,16 @@ function getLiveUnitPrice(cartItem) {
                         const liveProduct = state.products.find(p => p.id === item.id);
                         const stock = liveProduct ? window.getProductStock(liveProduct) : Infinity;
                         const atMaxStock = item.qty >= stock;
-                        const promoInfo = liveProduct && window.getPromoInfo ? window.getPromoInfo(liveProduct) : null;
-                        const unitPrice = promoInfo ? promoInfo.finalPrice : item.price;
-                        const priceHtml = (promoInfo && promoInfo.active)
-                            ? `<p class="text-xs font-bold flex items-center gap-1.5"><span class="text-rose-600">Rp ${unitPrice.toLocaleString('id-ID')}</span><span class="text-[10px] text-slate-400 line-through">Rp ${promoInfo.originalPrice.toLocaleString('id-ID')}</span><span class="text-[9px] bg-rose-50 text-rose-600 font-black px-1.5 py-0.5 rounded uppercase">Promo</span></p>`
-                            : `<p class="text-xs text-brand-600 font-bold">Rp ${unitPrice.toLocaleString('id-ID')}</p>`;
+                        const promoInfo = liveProduct ? getPromoInfo(liveProduct) : { active: false, promoPrice: item.price, originalPrice: item.price };
                         return `
                         <div class="flex items-center gap-3 pt-3">
                             <img src="${item.image}" class="w-12 h-12 rounded-lg object-cover bg-slate-100">
                             <div class="flex-1">
                                 <h5 class="font-bold text-xs text-slate-800 line-clamp-1">${item.name}</h5>
-                                ${priceHtml}
+                                <div class="flex items-center gap-1.5">
+                                    <p class="text-xs text-brand-600 font-bold">Rp ${promoInfo.promoPrice.toLocaleString('id-ID')}</p>
+                                    ${promoInfo.active ? `<p class="text-[10px] text-slate-400 line-through">Rp ${promoInfo.originalPrice.toLocaleString('id-ID')}</p><span class="text-[9px] font-black text-white bg-rose-600 px-1.5 py-0.5 rounded-full uppercase">Promo</span>` : ''}
+                                </div>
                                 <div class="flex items-center gap-2 mt-1">
                                     <button onclick="window.changeCartQty('${item.id}', -1)" class="w-5 h-5 bg-slate-200 text-slate-700 rounded flex items-center justify-center font-bold text-xs">-</button>
                                     <span class="text-xs font-bold">${item.qty}</span>
@@ -164,10 +157,9 @@ function getLiveUnitPrice(cartItem) {
             const subtotalEl = document.getElementById('checkout-subtotal');
             const totalEl = document.getElementById('checkout-total-price');
 
-            // Total checkout SELALU pakai harga TERBARU (promo yang masih
-            // berlaku saat ini), bukan harga yang di-cache saat item
-            // ditambahkan ke keranjang.
-            const total = state.cart.reduce((sum, i) => sum + (getLiveUnitPrice(i) * i.qty), 0);
+            // Total checkout SELALU dihitung dari harga terkini (promo yang
+            // masih berlaku), bukan harga yang tersimpan saat item ditambahkan.
+            const total = state.cart.reduce((sum, i) => sum + (getCartItemUnitPrice(i) * i.qty), 0);
             if(subtotalEl) subtotalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
             if(totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
 
@@ -176,16 +168,15 @@ function getLiveUnitPrice(cartItem) {
                     const liveProduct = state.products.find(p => p.id === i.id);
                     const stock = liveProduct ? window.getProductStock(liveProduct) : Infinity;
                     const overStock = i.qty > stock;
-                    const promoInfo = liveProduct && window.getPromoInfo ? window.getPromoInfo(liveProduct) : null;
-                    const unitPrice = promoInfo ? promoInfo.finalPrice : i.price;
-                    const lineTotal = unitPrice * i.qty;
+                    const promoInfo = liveProduct ? getPromoInfo(liveProduct) : { active: false, promoPrice: i.price };
+                    const lineTotal = promoInfo.promoPrice * i.qty;
                     return `
                     <div class="text-xs">
                         <div class="flex justify-between items-center">
                             <div class="flex items-center gap-2">
                                 <span class="font-bold text-brand-600">${i.qty}x</span>
                                 <span class="text-slate-700 line-clamp-1 max-w-[150px]">${i.name}</span>
-                                ${promoInfo && promoInfo.active ? '<span class="text-[9px] bg-rose-50 text-rose-600 font-black px-1.5 py-0.5 rounded uppercase">Promo</span>' : ''}
+                                ${promoInfo.active ? '<span class="text-[9px] font-black text-white bg-rose-600 px-1.5 py-0.5 rounded-full uppercase">Promo</span>' : ''}
                             </div>
                             <span class="font-bold text-slate-900">Rp ${lineTotal.toLocaleString('id-ID')}</span>
                         </div>
@@ -199,4 +190,5 @@ function getLiveUnitPrice(cartItem) {
 // Dipakai juga oleh checkout.js (submit pesanan) & modul lain
 window.updateCartUI = updateCartUI;
 window.renderCheckoutSummary = renderCheckoutSummary;
+window.getCartItemUnitPrice = getCartItemUnitPrice;
 

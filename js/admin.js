@@ -14,6 +14,7 @@
 import { doc, addDoc, updateDoc, deleteDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { db, appId } from './config.js';
 import { state } from './state.js';
+import { getPromoInfo, formatCountdown } from './promo.js';
 
 window.switchAdminTab = function(tab) {
     // --- GUARD KHUSUS: tab "Laporan Penjualan" hanya untuk admin ---
@@ -153,6 +154,21 @@ function renderAdminProductsTable() {
         } else {
             stockBadge = `<span class="bg-emerald-900 text-emerald-300 px-2 py-0.5 rounded text-[10px]">${stock} pcs</span>`;
         }
+        const promoInfo = getPromoInfo(p);
+        let promoCell;
+        if (promoInfo.active) {
+            const remainingMs = new Date(promoInfo.endDate).getTime() - Date.now();
+            promoCell = `
+                <span class="bg-gradient-to-r from-amber-500 to-rose-600 text-white px-2 py-0.5 rounded-full text-[10px] font-black uppercase inline-block w-fit">${promoInfo.discountLabel}</span>
+                <p class="text-[10px] text-slate-400 mt-1">Rp ${promoInfo.promoPrice.toLocaleString('id-ID')}</p>
+                <p class="text-[9px] text-amber-400 mt-0.5"><i class="fa-regular fa-clock me-1"></i>${formatCountdown(remainingMs)}</p>
+            `;
+        } else if (promoInfo.scheduled) {
+            promoCell = `<span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px]">Terjadwal</span>`;
+        } else {
+            promoCell = `<span class="text-slate-600 text-[10px]">-</span>`;
+        }
+
         return `
         <tr>
             <td class="p-3.5 flex items-center gap-2">
@@ -161,7 +177,7 @@ function renderAdminProductsTable() {
             </td>
             <td class="p-3.5">${p.brand} / ${p.category}</td>
             <td class="p-3.5 font-bold text-rose-400">Rp ${p.price.toLocaleString('id-ID')}</td>
-            <td class="p-3.5">${renderAdminPromoBadge(p)}</td>
+            <td class="p-3.5">${promoCell}</td>
             <td class="p-3.5">${stockBadge}</td>
             <td class="p-3.5 text-right space-x-1">
                 <button onclick='window.editProduct(${JSON.stringify(p.id)})' class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded" title="Edit Produk & Stok"><i class="fa-solid fa-pen"></i></button>
@@ -169,22 +185,6 @@ function renderAdminProductsTable() {
             </td>
         </tr>
     `;}).join('');
-}
-
-// --- BADGE PROMO DI TABEL ADMIN ---
-function renderAdminPromoBadge(product) {
-    const promoInfo = window.getPromoInfo ? window.getPromoInfo(product) : { active: false };
-    if (promoInfo.active) {
-        const label = promoInfo.type === 'nominal' ? `-Rp${promoInfo.value.toLocaleString('id-ID')}` : `-${promoInfo.value}%`;
-        return `<span class="bg-rose-900 text-rose-300 px-2 py-0.5 rounded text-[10px] font-bold" title="Berakhir: ${new Date(promoInfo.endDate).toLocaleString('id-ID')}"><i class="fa-solid fa-tag me-1"></i>${label}</span>`;
-    }
-    if (product.promo && product.promo.active === false) {
-        return `<span class="text-slate-500 text-[10px]">Nonaktif</span>`;
-    }
-    if (product.promo && product.promo.endDate && Date.now() > product.promo.endDate) {
-        return `<span class="text-slate-500 text-[10px]">Berakhir</span>`;
-    }
-    return `<span class="text-slate-600 text-[10px]">-</span>`;
 }
 
 window.deleteProduct = async function(productId) {
@@ -201,60 +201,9 @@ window.openAddProductModal = function() {
     document.getElementById('product-form').reset();
     document.getElementById('product-form-id').value = '';
     document.getElementById('product-form-title').textContent = 'Tambah Produk Baru';
-    document.getElementById('product-form-promo-active').checked = false;
-    document.getElementById('product-form-promo-fields').classList.add('hidden');
-    document.getElementById('product-form-promo-preview').textContent = 'Isi harga jual & nilai promo untuk melihat pratinjau harga.';
+    window.togglePromoFormFields(false);
+    window.updatePromoValueLabel('percentage');
     document.getElementById('product-form-modal').classList.remove('hidden');
-};
-
-// Format epoch ms -> "YYYY-MM-DD" untuk mengisi <input type="date">
-function msToDateInputValue(ms) {
-    if (!ms) return '';
-    const d = new Date(ms);
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-// --- TOGGLE TAMPILAN FIELD PROMO (checkbox aktifkan promo) ---
-window.onPromoActiveToggle = function() {
-    const active = document.getElementById('product-form-promo-active').checked;
-    const fields = document.getElementById('product-form-promo-fields');
-    if (fields) fields.classList.toggle('hidden', !active);
-
-    // Isi default tanggal (hari ini s/d +7 hari) kalau admin baru saja
-    // mengaktifkan promo dan belum mengisi tanggal sama sekali.
-    if (active) {
-        const startEl = document.getElementById('product-form-promo-start');
-        const endEl = document.getElementById('product-form-promo-end');
-        if (startEl && !startEl.value) startEl.value = msToDateInputValue(Date.now());
-        if (endEl && !endEl.value) endEl.value = msToDateInputValue(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        window.updatePromoPreview();
-    }
-};
-
-// --- PRATINJAU HARGA PROMO SECARA LIVE DI FORM ADMIN ---
-window.updatePromoPreview = function() {
-    const previewEl = document.getElementById('product-form-promo-preview');
-    if (!previewEl) return;
-
-    const price = parseInt(document.getElementById('product-form-price').value) || 0;
-    const type = document.getElementById('product-form-promo-type').value;
-    const value = parseFloat(document.getElementById('product-form-promo-value').value) || 0;
-
-    if (price <= 0 || value <= 0) {
-        previewEl.textContent = 'Isi harga jual & nilai promo untuk melihat pratinjau harga.';
-        return;
-    }
-
-    let finalPrice;
-    if (type === 'nominal') {
-        finalPrice = Math.max(0, price - value);
-    } else {
-        const pct = Math.min(Math.max(value, 0), 100);
-        finalPrice = Math.round(price - (price * pct / 100));
-    }
-    const hemat = price - finalPrice;
-    previewEl.textContent = `Harga promo: Rp ${finalPrice.toLocaleString('id-ID')} (hemat Rp ${hemat.toLocaleString('id-ID')} dari Rp ${price.toLocaleString('id-ID')})`;
 };
 
 window.editProduct = function(productId) {
@@ -272,23 +221,15 @@ window.editProduct = function(productId) {
     document.getElementById('product-form-stock').value = (typeof p.stock === 'number') ? p.stock : 0;
 
     // --- ISI ULANG FIELD PROMO (jika produk ini sudah punya promo) ---
-    const promo = p.promo;
+    const promo = p.promo || {};
     const promoActiveCheckbox = document.getElementById('product-form-promo-active');
-    if (promo) {
-        promoActiveCheckbox.checked = !!promo.active;
-        document.getElementById('product-form-promo-type').value = promo.type === 'nominal' ? 'nominal' : 'percentage';
-        document.getElementById('product-form-promo-value').value = promo.value || '';
-        document.getElementById('product-form-promo-start').value = msToDateInputValue(promo.startDate);
-        document.getElementById('product-form-promo-end').value = msToDateInputValue(promo.endDate);
-    } else {
-        promoActiveCheckbox.checked = false;
-        document.getElementById('product-form-promo-type').value = 'percentage';
-        document.getElementById('product-form-promo-value').value = '';
-        document.getElementById('product-form-promo-start').value = '';
-        document.getElementById('product-form-promo-end').value = '';
-    }
-    document.getElementById('product-form-promo-fields').classList.toggle('hidden', !promoActiveCheckbox.checked);
-    window.updatePromoPreview();
+    promoActiveCheckbox.checked = !!promo.active;
+    document.getElementById('product-form-promo-type').value = promo.type || 'percentage';
+    document.getElementById('product-form-promo-value').value = promo.value || '';
+    document.getElementById('product-form-promo-start').value = promo.startDate || '';
+    document.getElementById('product-form-promo-end').value = promo.endDate || '';
+    window.togglePromoFormFields(!!promo.active);
+    window.updatePromoValueLabel(promo.type || 'percentage');
 
     document.getElementById('product-form-title').textContent = 'Edit Produk';
     document.getElementById('product-form-modal').classList.remove('hidden');
@@ -298,38 +239,52 @@ window.closeProductModal = function() {
     document.getElementById('product-form-modal').classList.add('hidden');
 };
 
+// --- TAMPILKAN / SEMBUNYIKAN FIELD PROMO di form tambah/edit produk ---
+window.togglePromoFormFields = function(show) {
+    const fields = document.getElementById('product-form-promo-fields');
+    if (!fields) return;
+    fields.classList.toggle('hidden', !show);
+};
+
+// --- UBAH LABEL "Nilai Diskon" sesuai jenis promo yang dipilih ---
+window.updatePromoValueLabel = function(type) {
+    const label = document.getElementById('product-form-promo-value-label');
+    if (!label) return;
+    label.textContent = type === 'nominal' ? 'Nilai Diskon (Rp)' : 'Nilai Diskon (%)';
+};
+
 window.saveProduct = async function(e) {
     e.preventDefault();
     const id = document.getElementById('product-form-id').value;
 
-    // --- VALIDASI & SUSUN DATA PROMO ---
+    // --- VALIDASI & SUSUN OBJEK PROMO ---
     const promoActive = document.getElementById('product-form-promo-active').checked;
-    let promo = null;
-    if (promoActive) {
-        const type = document.getElementById('product-form-promo-type').value === 'nominal' ? 'nominal' : 'percentage';
-        const value = parseFloat(document.getElementById('product-form-promo-value').value) || 0;
-        const startVal = document.getElementById('product-form-promo-start').value;
-        const endVal = document.getElementById('product-form-promo-end').value;
+    let promo = { active: false, type: 'percentage', value: 0, startDate: '', endDate: '' };
 
-        if (!startVal || !endVal) {
+    if (promoActive) {
+        const promoType = document.getElementById('product-form-promo-type').value;
+        const promoValue = parseInt(document.getElementById('product-form-promo-value').value) || 0;
+        const promoStart = document.getElementById('product-form-promo-start').value;
+        const promoEnd = document.getElementById('product-form-promo-end').value;
+
+        if (!promoStart || !promoEnd) {
             window.showToast('Tanggal mulai & berakhir promo wajib diisi.', 'error');
             return;
         }
-        const startDate = new Date(`${startVal}T00:00:00`).getTime();
-        const endDate = new Date(`${endVal}T23:59:59`).getTime();
-        if (endDate <= startDate) {
+        if (new Date(promoEnd).getTime() <= new Date(promoStart).getTime()) {
             window.showToast('Tanggal berakhir promo harus setelah tanggal mulai.', 'error');
             return;
         }
-        if (value <= 0) {
-            window.showToast('Nilai promo harus lebih dari 0.', 'error');
+        if (promoType === 'percentage' && (promoValue <= 0 || promoValue > 100)) {
+            window.showToast('Nilai diskon persentase harus di antara 1-100.', 'error');
             return;
         }
-        if (type === 'percentage' && value > 100) {
-            window.showToast('Persentase promo maksimal 100%.', 'error');
+        if (promoType === 'nominal' && promoValue <= 0) {
+            window.showToast('Nilai diskon nominal harus lebih dari 0.', 'error');
             return;
         }
-        promo = { active: true, type, value, startDate, endDate };
+
+        promo = { active: true, type: promoType, value: promoValue, startDate: promoStart, endDate: promoEnd };
     }
 
     const productData = {
@@ -341,7 +296,7 @@ window.saveProduct = async function(e) {
         image: document.getElementById('product-form-image').value,
         description: document.getElementById('product-form-description').value,
         stock: Math.max(0, parseInt(document.getElementById('product-form-stock').value) || 0),
-        promo: promo,
+        promo,
         rating: 5,
         sales: 0,
         isBestseller: false,
