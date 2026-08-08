@@ -23,7 +23,8 @@ import {
     hideAuthError,
     finalizeSuccessfulLogin,
     handlePostLoginRedirect,
-    setPendingUnverifiedUser
+    setPendingUnverifiedUser,
+    setLoginAttemptInProgress
 } from './auth.js';
 
 const googleProvider = new GoogleAuthProvider();
@@ -45,6 +46,12 @@ window.handleAuthLogin = async function(e) {
     const rememberMe = rememberInput ? rememberInput.checked : true;
 
     if (btnSpinner) btnSpinner.classList.remove('hidden');
+
+    // Tandai proses login sedang berlangsung, supaya transisi status auth
+    // sesaat (mis. dipicu setPersistence di bawah) tidak salah dianggap
+    // "sesi habis" oleh listener global di auth.js (lihat penjelasan
+    // lengkap di komentar auth.js bagian FLAGS INTERNAL SESI).
+    setLoginAttemptInProgress(true);
 
     try {
         // "Ingat Saya" dicentang -> sesi tetap tersimpan walau browser ditutup.
@@ -82,6 +89,7 @@ window.handleAuthLogin = async function(e) {
         showAuthError('login', translateAuthError(err));
     } finally {
         if (btnSpinner) btnSpinner.classList.add('hidden');
+        setLoginAttemptInProgress(false);
     }
 };
 
@@ -91,6 +99,7 @@ window.handleAuthLogin = async function(e) {
 window.handleGoogleLogin = async function() {
     const btnSpinner = document.getElementById('btn-auth-google-spinner');
     if (btnSpinner) btnSpinner.classList.remove('hidden');
+    setLoginAttemptInProgress(true);
 
     try {
         const cred = await signInWithPopup(auth, googleProvider);
@@ -116,6 +125,7 @@ window.handleGoogleLogin = async function() {
         }
     } finally {
         if (btnSpinner) btnSpinner.classList.add('hidden');
+        setLoginAttemptInProgress(false);
     }
 };
 

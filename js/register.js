@@ -21,7 +21,8 @@ import {
     translateAuthError,
     showAuthError,
     hideAuthError,
-    setPendingUnverifiedUser
+    setPendingUnverifiedUser,
+    setLoginAttemptInProgress
 } from './auth.js';
 import { isPhoneAvailable, reservePhoneNumber } from './phone-registry.js';
 
@@ -56,6 +57,7 @@ window.handleAuthRegister = async function(e) {
     }
 
     if (btnSpinner) btnSpinner.classList.remove('hidden');
+    setLoginAttemptInProgress(true);
 
     try {
         // --- VALIDASI NOMOR WHATSAPP UNIK (sebelum akun dibuat) ---
@@ -104,6 +106,7 @@ window.handleAuthRegister = async function(e) {
         showAuthError('register', translateAuthError(err));
     } finally {
         if (btnSpinner) btnSpinner.classList.add('hidden');
+        setLoginAttemptInProgress(false);
     }
 };
 

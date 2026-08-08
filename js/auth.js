@@ -132,6 +132,13 @@ export async function touchLastActivity(uid) {
 export async function finalizeSuccessfulLogin(user, extra = {}) {
     const profileData = await syncUserProfileOnLogin(user, extra);
 
+    // FIX: isi state.userProfile SEKARANG JUGA (synchronous di titik ini),
+    // bukan menunggu listener onSnapshot di bawah yang berjalan async
+    // terpisah. Tanpa ini, handlePostLoginRedirect() bisa terpanggil
+    // sebelum state.userProfile terisi, sehingga guard admin di
+    // switchToViewMode('admin') salah menganggap user bukan admin.
+    state.userProfile = profileData;
+
     if (profileData.status === 'disabled') {
         await forceLogoutDisabledAccount();
         return null;
@@ -171,15 +178,59 @@ export function handlePostLoginRedirect(role) {
 // ================= FLAGS INTERNAL SESI =================
 // Membedakan penyebab user menjadi "logged out" di listener
 // onAuthStateChanged: logout manual, dipaksa karena akun dinonaktifkan,
-// atau sesi berakhir tanpa sebab eksplisit (token invalid/logout dari
-// perangkat lain) -> masing-masing menampilkan dialog yang berbeda.
+// sedang di tengah proses login (lihat penjelasan di bawah), atau sesi
+// benar-benar berakhir tanpa sebab eksplisit (token invalid/logout dari
+// perangkat lain) -> masing-masing menampilkan dialog yang berbeda
+// (atau tidak menampilkan dialog sama sekali).
 let isExplicitLogout = false;
 let isForcedDisableLogout = false;
 let currentLoginLogId = null;
 let profileUnsubscribe = null;
 
+// --- BUG FIX: "Sesi Anda sudah habis" muncul saat login admin BERHASIL ---
+// Root cause: Firebase Auth bisa mengirim event transisi user -> null
+// SESAAT SEBELUM sesi baru benar-benar aktif saat login sedang berjalan
+// (mis. dipicu oleh setPersistence() yang dipanggil di awal proses login
+// untuk fitur "Ingat Saya"). Event null transien ini BUKAN sesi yang
+// benar-benar berakhir, tapi bagian normal dari proses login yang sedang
+// berlangsung. Kode lama langsung menampilkan dialog "Sesi Anda sudah
+// habis" begitu melihat transisi ke null, tanpa membedakan kasus ini.
+//
+// Perbaikan (2 lapis):
+// 1. `isLoginAttemptInProgress` — flag eksplisit yang di-set true selama
+//    login.js/register.js sedang menjalankan proses login/registrasi.
+//    Selama flag ini true, transisi null TIDAK PERNAH dianggap sesi habis.
+// 2. Debounce — sebagai jaring pengaman tambahan untuk skenario lain di
+//    luar proses login manual (mis. refresh token flicker saat browsing),
+//    dialog "Sesi Anda sudah habis" tidak langsung ditampilkan begitu ada
+//    transisi ke null, melainkan ditunda sebentar; jika user login
+//    kembali sebelum jeda itu selesai, dialog dibatalkan (dianggap blip
+//    sementara, bukan sesi berakhir sungguhan).
+let isLoginAttemptInProgress = false;
+let sessionExpiredTimer = null;
+
+export function setLoginAttemptInProgress(value) {
+    isLoginAttemptInProgress = value;
+}
+
+function scheduleSessionExpiredCheck() {
+    cancelPendingSessionExpiredCheck();
+    sessionExpiredTimer = setTimeout(() => {
+        sessionExpiredTimer = null;
+        window.showSessionExpiredModal();
+    }, 700);
+}
+
+function cancelPendingSessionExpiredCheck() {
+    if (sessionExpiredTimer) {
+        clearTimeout(sessionExpiredTimer);
+        sessionExpiredTimer = null;
+    }
+}
+
 async function forceLogoutDisabledAccount() {
     isForcedDisableLogout = true;
+    cancelPendingSessionExpiredCheck();
     if (currentLoginLogId) {
         await closeLoginLog(currentLoginLogId);
         currentLoginLogId = null;
@@ -207,6 +258,11 @@ onAuthStateChanged(auth, async (user) => {
     const adminMenuLink = document.getElementById('admin-menu-link');
 
     if (user) {
+        // User berhasil (kembali) ter-autentikasi -> batalkan dialog
+        // "Sesi Anda sudah habis" yang mungkin sedang tertunda dari
+        // transisi null transien sebelumnya (lihat penjelasan di atas).
+        cancelPendingSessionExpiredCheck();
+
         const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
 
         // --- LISTENER REAL-TIME PADA DOKUMEN PROFIL SENDIRI ---
@@ -272,12 +328,16 @@ onAuthStateChanged(auth, async (user) => {
         if (adminMenuLink) adminMenuLink.classList.add('hidden');
 
         // --- DETEKSI SESI BERAKHIR TANPA SEBAB EKSPLISIT ---
-        // Hanya tampil jika sebelumnya user memang sedang login (hadSession)
-        // DAN transisi ini bukan karena user klik Logout, dan bukan karena
-        // akun baru saja dipaksa keluar oleh guard status disabled (dialog
-        // "Akun Dinonaktifkan" sudah menjelaskan sebabnya secara spesifik).
-        if (hadSession && !isExplicitLogout && !isForcedDisableLogout) {
-            window.showSessionExpiredModal();
+        // Hanya dipertimbangkan jika sebelumnya user memang sedang login
+        // (hadSession), DAN bukan karena klik Logout, DAN bukan karena
+        // akun baru saja dipaksa keluar oleh guard status disabled
+        // (dialog "Akun Dinonaktifkan" sudah menjelaskan sebabnya secara
+        // spesifik), DAN bukan sedang di tengah proses login (lihat
+        // penjelasan `isLoginAttemptInProgress` di atas). Dialog ditunda
+        // sebentar (debounce) supaya transisi null yang transien/sesaat
+        // tidak langsung dianggap sesi benar-benar berakhir.
+        if (hadSession && !isExplicitLogout && !isForcedDisableLogout && !isLoginAttemptInProgress) {
+            scheduleSessionExpiredCheck();
         }
         isExplicitLogout = false;
         isForcedDisableLogout = false;
