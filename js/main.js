@@ -16,7 +16,10 @@ import './config.js';
 import './state.js';
 import './ui.js';
 import './promo.js';
+import './profile.js';
 import './auth.js';
+import './login.js';
+import './register.js';
 import { setupProductsSnapshot } from './products.js';
 import './cart.js';
 import './checkout.js';
@@ -25,6 +28,8 @@ import './admin.js';
 import './product-import-export.js';
 import { setupPaymentSettingsSnapshot } from './settings.js';
 import './reports.js';
+import './login-logs.js';
+import { setupUsersSnapshot } from './users-admin.js';
 
 // --- PARTIAL LOADER ---
 async function loadPartial(el) {
@@ -52,6 +57,7 @@ async function bootstrapApp() {
     setupProductsSnapshot();
     setupOrdersSnapshot();
     setupPaymentSettingsSnapshot();
+    setupUsersSnapshot();
 
     // Set tanggal pick up default di form checkout ke hari ini
     const dateInput = document.getElementById('checkout-pickup-date');

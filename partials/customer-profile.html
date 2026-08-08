@@ -1,10 +1,24 @@
             <section id="view-customer-profile" class="view-page hidden animate-fadeIn max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
                 <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center gap-4">
                     <img id="profile-page-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80" class="w-20 h-20 rounded-full object-cover border-4 border-rose-100 shadow">
-                    <div class="text-center sm:text-left space-y-1">
+                    <div class="text-center sm:text-left space-y-1.5 flex-1">
                         <h1 id="profile-page-name" class="text-2xl font-extrabold text-slate-900">Nama Pelanggan</h1>
                         <p id="profile-page-email" class="text-xs text-slate-500">email@example.com</p>
-                        <span id="profile-role-badge" class="inline-block bg-brand-50 text-brand-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">Customer YN Shop</span>
+                        <p class="text-xs text-slate-500"><i class="fa-solid fa-phone text-brand-500 me-1.5"></i><span id="profile-page-phone-value">-</span></p>
+                        <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                            <span id="profile-role-badge" class="inline-block bg-brand-50 text-brand-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">Customer YN Shop</span>
+                            <span id="profile-status-badge" class="inline-block bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">🟢 Aktif</span>
+                            <span id="profile-method-badge" class="inline-block bg-slate-100 text-slate-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full"><i class="fa-solid fa-key me-1"></i> Email &amp; Password</span>
+                            <span id="profile-verified-badge" class="inline-block bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">🟢 Terverifikasi</span>
+                        </div>
+                        <button id="profile-resend-verif-btn" onclick="resendVerificationEmail()" class="hidden resend-verif-btn mt-2 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-paper-plane me-1"></i> Kirim Ulang Verifikasi
+                        </button>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-3 text-[11px] text-slate-500 border-t border-slate-100 mt-2">
+                            <p><i class="fa-solid fa-calendar-check text-brand-500 me-1.5"></i>Bergabung: <span id="profile-page-joined" class="font-semibold text-slate-700">-</span></p>
+                            <p><i class="fa-solid fa-right-to-bracket text-brand-500 me-1.5"></i>Login Terakhir: <span id="profile-page-lastlogin" class="font-semibold text-slate-700">-</span></p>
+                            <p><i class="fa-solid fa-bolt text-brand-500 me-1.5"></i>Aktivitas Terakhir: <span id="profile-page-lastactivity" class="font-semibold text-slate-700">-</span></p>
+                        </div>
                     </div>
                 </div>
 

@@ -27,15 +27,15 @@ window.switchAdminTab = function(tab) {
         return;
     }
 
-    document.getElementById('admin-subview-dashboard').classList.add('hidden');
-    document.getElementById('admin-subview-orders').classList.add('hidden');
-    document.getElementById('admin-subview-products').classList.add('hidden');
-    document.getElementById('admin-subview-settings').classList.add('hidden');
-    document.getElementById('admin-subview-laporan').classList.add('hidden');
+    ['dashboard', 'orders', 'products', 'settings', 'laporan', 'users', 'login-logs'].forEach(t => {
+        const el = document.getElementById(`admin-subview-${t}`);
+        if (el) el.classList.add('hidden');
+    });
 
-    document.getElementById(`admin-subview-${tab}`).classList.remove('hidden');
+    const target = document.getElementById(`admin-subview-${tab}`);
+    if (target) target.classList.remove('hidden');
 
-    ['dash', 'orders', 'products', 'settings', 'laporan'].forEach(t => {
+    ['dash', 'orders', 'products', 'settings', 'laporan', 'users', 'login-logs'].forEach(t => {
         const btn = document.getElementById(`adm-tab-${t}`);
         if (btn) btn.className = 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700';
     });
@@ -47,6 +47,8 @@ window.switchAdminTab = function(tab) {
     if(tab === 'orders') window.renderAdminOrdersTable();
     if(tab === 'products') window.renderAdminProductsTable();
     if(tab === 'laporan' && typeof window.initSalesReportTab === 'function') window.initSalesReportTab();
+    if(tab === 'users' && typeof window.renderAdminUsersTable === 'function') window.renderAdminUsersTable();
+    if(tab === 'login-logs' && typeof window.loadLoginLogsTab === 'function') window.loadLoginLogsTab();
 };
 
 function renderAdminDashboard() {

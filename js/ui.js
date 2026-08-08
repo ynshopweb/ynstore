@@ -59,6 +59,20 @@ window.navigateTo = function(viewId) {
 };
 
 window.switchToViewMode = function(mode) {
+    // --- GUARD AKSES PANEL ADMIN ---
+    // Hanya user dengan role Firestore 'admin' yang boleh membuka Panel
+    // Admin. Berlaku untuk semua jalur pemanggilan (klik menu, maupun
+    // dipanggil langsung lewat console), bukan hanya menyembunyikan link.
+    if (mode === 'admin') {
+        const isAdmin = !!(state.userProfile && state.userProfile.role === 'admin' && state.userProfile.status !== 'disabled');
+        if (!isAdmin) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('Akses ditolak. Anda tidak memiliki izin sebagai Admin.', 'error');
+            }
+            return;
+        }
+    }
+
     state.viewMode = mode;
     const customerHeader = document.getElementById('customer-header');
     const customerMain = document.getElementById('customer-main-view');
@@ -71,16 +85,20 @@ window.switchToViewMode = function(mode) {
         customerMain.classList.add('hidden');
         customerFooter.classList.add('hidden');
         adminMain.classList.remove('hidden');
-        roleIndicator.textContent = "Admin Panel";
-        roleIndicator.className = "font-bold text-emerald-400 uppercase tracking-wider";
+        if (roleIndicator) {
+            roleIndicator.textContent = "Admin Panel";
+            roleIndicator.className = "font-bold text-emerald-400 uppercase tracking-wider";
+        }
         window.renderAdminDashboard();
     } else {
         customerHeader.classList.remove('hidden');
         customerMain.classList.remove('hidden');
         customerFooter.classList.remove('hidden');
         adminMain.classList.add('hidden');
-        roleIndicator.textContent = "Customer View";
-        roleIndicator.className = "font-bold text-rose-400 uppercase tracking-wider";
+        if (roleIndicator) {
+            roleIndicator.textContent = "Customer View";
+            roleIndicator.className = "font-bold text-rose-400 uppercase tracking-wider";
+        }
         window.navigateTo(state.activeView || 'home');
     }
 };

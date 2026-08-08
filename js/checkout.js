@@ -7,6 +7,7 @@ import { doc, setDoc, updateDoc, runTransaction } from "https://www.gstatic.com/
 import { db, appId } from './config.js';
 import { state } from './state.js';
 import { getEffectivePrice } from './promo.js';
+import { touchLastActivity } from './auth.js';
 
 /**
  * Rendernya daftar slot jam pengambilan pesanan di toko
@@ -234,6 +235,9 @@ export async function handleCheckoutSubmit(e) {
 
         // Simpan data pesanan saat ini di memori state
         state.currentOrderPayment = orderData;
+
+        // Catat Last Activity (tidak memengaruhi alur checkout — fire & forget)
+        touchLastActivity(state.user.uid);
 
         // Kosongkan keranjang belanja setelah checkout berhasil
         state.cart = [];

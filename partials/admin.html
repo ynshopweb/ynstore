@@ -23,6 +23,12 @@
                         <button onclick="switchAdminTab('laporan')" id="adm-tab-laporan" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
                             <i class="fa-solid fa-file-invoice-dollar me-1"></i> Laporan Penjualan
                         </button>
+                        <button onclick="switchAdminTab('users')" id="adm-tab-users" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-users-gear me-1"></i> Manajemen Pengguna
+                        </button>
+                        <button onclick="switchAdminTab('login-logs')" id="adm-tab-login-logs" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
+                            <i class="fa-solid fa-clock-rotate-left me-1"></i> Riwayat Login
+                        </button>
                         <button onclick="switchAdminTab('settings')" id="adm-tab-settings" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 font-bold hover:bg-slate-700">
                             <i class="fa-solid fa-gear me-1"></i> Pengaturan
                         </button>
@@ -266,6 +272,67 @@
                     </div>
                 </div>
 
+                <!-- ADMIN TAB: MANAJEMEN PENGGUNA -->
+                <div id="admin-subview-users" class="hidden space-y-4">
+                    <div class="flex justify-between items-center flex-wrap gap-3">
+                        <h2 class="text-lg font-bold text-white">Manajemen Pengguna</h2>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-3">Nama</th>
+                                        <th class="p-3">Email</th>
+                                        <th class="p-3">WhatsApp</th>
+                                        <th class="p-3">Role</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3">Provider</th>
+                                        <th class="p-3">Email Verified</th>
+                                        <th class="p-3">Tgl Registrasi</th>
+                                        <th class="p-3 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-tbody" class="divide-y divide-slate-700">
+                                    <tr><td colspan="9" class="p-6 text-center text-slate-500">Memuat data pengguna...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADMIN TAB: RIWAYAT LOGIN -->
+                <div id="admin-subview-login-logs" class="hidden space-y-4">
+                    <div class="flex justify-between items-center flex-wrap gap-3">
+                        <h2 class="text-lg font-bold text-white">Riwayat Login</h2>
+                        <div class="relative w-full sm:w-64">
+                            <input type="text" id="login-logs-search" onkeyup="filterLoginLogs()" placeholder="Cari nama atau email..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white outline-none focus:border-brand-500">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-slate-900 text-slate-400 uppercase font-bold text-[10px] border-b border-slate-700">
+                                    <tr>
+                                        <th class="p-3">Tanggal</th>
+                                        <th class="p-3">Nama</th>
+                                        <th class="p-3">Email</th>
+                                        <th class="p-3">Provider</th>
+                                        <th class="p-3">Browser</th>
+                                        <th class="p-3">OS / Device</th>
+                                        <th class="p-3">Status Login</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-login-logs-tbody" class="divide-y divide-slate-700">
+                                    <tr><td colspan="7" class="p-6 text-center text-slate-500">Buka tab ini untuk memuat riwayat login.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500"><i class="fa-solid fa-circle-info me-1"></i>Menampilkan 200 login terakhir, diurutkan dari yang terbaru.</p>
+                </div>
+
             </div>
         </main>
 
@@ -504,6 +571,62 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: DETAIL / EDIT USER (Manajemen Pengguna) -->
+        <div id="user-detail-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white w-full max-w-md max-h-[90vh] rounded-2xl shadow-2xl relative animate-fadeIn flex flex-col overflow-hidden">
+                <button onclick="closeUserDetailModal()" class="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur-sm text-slate-400 hover:text-slate-600 p-1.5 rounded-full shadow-sm"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div class="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
+                    <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 pr-8">
+                        <i class="fa-solid fa-user-gear text-brand-600 me-1.5"></i> Detail &amp; Edit Pengguna
+                    </h3>
+
+                    <!-- INFO READ-ONLY (tidak bisa diubah dari sini, sesuai Firestore Security Rules) -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-1.5 text-[11px]">
+                        <p class="flex justify-between"><span class="text-slate-500">Email</span> <span id="user-detail-email" class="font-semibold text-slate-800">-</span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Metode Login</span> <span id="user-detail-provider" class="font-semibold text-slate-800">-</span></p>
+                        <p class="flex justify-between items-center"><span class="text-slate-500">Email Verified</span> <span id="user-detail-verified">-</span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Tanggal Registrasi</span> <span id="user-detail-created" class="font-semibold text-slate-800">-</span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Last Login</span> <span id="user-detail-lastlogin" class="font-semibold text-slate-800">-</span></p>
+                        <p class="flex justify-between"><span class="text-slate-500">Last Activity</span> <span id="user-detail-lastactivity" class="font-semibold text-slate-800">-</span></p>
+                    </div>
+
+                    <!-- FORM EDIT (nama, noHp, role, status — sesuai izin admin) -->
+                    <form id="user-detail-form" onsubmit="saveUserDetail(event)" class="space-y-3">
+                        <input type="hidden" id="user-detail-uid">
+                        <input type="hidden" id="user-detail-old-phone">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama</label>
+                            <input type="text" id="user-detail-name" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor WhatsApp</label>
+                            <input type="tel" id="user-detail-phone" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Role</label>
+                                <select id="user-detail-role" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                                    <option value="customer">Customer</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Status Akun</label>
+                                <select id="user-detail-status" class="w-full border border-slate-300 rounded-lg p-2.5 text-xs outline-none focus:border-brand-500">
+                                    <option value="active">🟢 Aktif</option>
+                                    <option value="disabled">🔴 Dinonaktifkan</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center gap-2">
+                            <span>Simpan Perubahan</span>
+                            <div id="btn-user-detail-save-spinner" class="spinner hidden"></div>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
