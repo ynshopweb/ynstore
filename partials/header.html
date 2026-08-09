@@ -62,10 +62,12 @@
                                 </div>
                                 
                                 <div id="auth-links-guest">
-                                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-brand-600 hover:bg-rose-50 transition">
+                                    <!-- Login Customer sekarang mengarah ke halaman khusus /login
+                                         (login.html), bukan lagi modal di tempat -->
+                                    <a href="login.html" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-brand-600 hover:bg-rose-50 transition">
                                         <i class="fa-solid fa-right-to-bracket w-4 text-center"></i> Masuk / Login
                                     </a>
-                                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-rose-50 hover:text-brand-600 transition">
+                                    <a href="login.html?tab=register" class="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-rose-50 hover:text-brand-600 transition">
                                         <i class="fa-solid fa-user-plus w-4 text-center"></i> Daftar Akun Baru
                                     </a>
                                 </div>

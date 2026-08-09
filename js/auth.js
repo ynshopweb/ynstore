@@ -8,11 +8,17 @@
 // shell modal Auth (tab login/daftar, dialog "Login Diperlukan",
 // "Email Belum Diverifikasi", "Akun Dinonaktifkan", "Sesi Berakhir").
 //
-// Form handler LOGIN ada di js/login.js. Form handler REGISTER ada di
-// js/register.js. Rendering halaman Profil ada di js/profile.js.
+// Form handler LOGIN CUSTOMER ada di js/login.js (dipakai halaman
+// khusus /login -> login.html). Form handler REGISTER ada di
+// js/register.js (dipakai juga oleh login.html). Form handler LOGIN
+// ADMIN ada di js/admin-login.js (dipakai halaman khusus /admin-login
+// -> admin-login.html). Rendering halaman Profil ada di js/profile.js.
 // Login History ada di js/login-logs.js. Manajemen Pengguna (admin)
 // ada di js/users-admin.js. Pemisahan ini supaya kode tetap rapi,
-// modular, dan tidak duplikat (lihat instruksi optimasi).
+// modular, dan tidak duplikat (lihat instruksi optimasi) — semua
+// modul di atas berbagi fungsi inti di file ini (translateAuthError,
+// syncUserProfileOnLogin, finalizeSuccessfulLogin, isValidAdminProfile,
+// dll), tidak ada logika autentikasi yang ditulis ulang.
 // ============================================================
 import {
     signOut,
@@ -24,6 +30,22 @@ import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from "htt
 import { auth, db, appId } from './config.js';
 import { state } from './state.js';
 import { writeLoginLog, closeLoginLog } from './login-logs.js';
+
+// --- VALIDASI HAK AKSES ADMIN (dipakai bersama: ui.js & js/admin-login.js) ---
+// Dipusatkan di sini (bukan diduplikasi di tiap pemanggil) supaya syarat
+// "role === 'admin' DAN status === 'active'" konsisten di seluruh app.
+//
+// CATATAN KEBIJAKAN EMAIL VERIFICATION UNTUK ADMIN:
+// Akun Customer (js/login.js) WAJIB emailVerified sebelum bisa login.
+// Akun ADMIN internal SENGAJA TIDAK diwajibkan emailVerified di sini —
+// akun admin dibuat & dikelola langsung oleh pemilik toko (lewat
+// Firebase Console atau Dashboard Manajemen Pengguna), bukan lewat
+// formulir pendaftaran publik, sehingga status verifikasi email tidak
+// relevan untuk memutuskan hak akses admin. Validasi admin murni
+// berdasarkan `role` & `status` dokumen profil Firestore di bawah ini.
+export function isValidAdminProfile(profileData) {
+    return !!(profileData && profileData.role === 'admin' && profileData.status === 'active');
+}
 
 // --- Menerjemahkan kode error Firebase Auth ke pesan yang mudah dipahami ---
 // PENTING: kode error Firebase mentah TIDAK PERNAH ditampilkan ke user.
@@ -156,23 +178,43 @@ export async function finalizeSuccessfulLogin(user, extra = {}) {
 }
 
 // --- REDIRECT SETELAH LOGIN BERHASIL (dipakai login.js & register.js) ---
+// Dipanggil dari 2 konteks berbeda:
+// 1. SPA index.html (quick re-login lewat modal Auth lama, mis. dialog
+//    "Sesi Berakhir") -> window.switchToViewMode tersedia di halaman
+//    ini, jadi perilaku ASLI dipertahankan apa adanya (tidak diubah)
+//    supaya fitur yang sudah berjalan tidak berubah.
+// 2. Halaman Login Customer terpisah /login (login.html) -> BUKAN SPA,
+//    window.switchToViewMode tidak ada di halaman ini. Login Customer
+//    TIDAK PERNAH otomatis membuka Dashboard Admin (lihat instruksi
+//    pemisahan: Dashboard Admin hanya boleh diakses lewat /admin-login),
+//    jadi di sini kita selalu redirect balik ke toko (index.html), dan
+//    jika ada checkout yang tertunda, tandai lewat sessionStorage supaya
+//    index.html bisa melanjutkannya setelah reload (lihat js/main.js).
 export function handlePostLoginRedirect(role) {
     const redirectTarget = (state && state.pendingRedirect) || window.pendingRedirect;
     if (state) state.pendingRedirect = null;
     window.pendingRedirect = null;
 
-    if (redirectTarget === 'checkout') {
-        if (typeof window.toggleCartDrawer === 'function') {
-            window.toggleCartDrawer(true);
-        }
-        if (typeof window.showToast === 'function') {
-            window.showToast('Silakan lanjutkan checkout dari Keranjang Anda.', 'success');
-        }
-    } else if (role === 'admin') {
-        if (typeof window.switchToViewMode === 'function') {
+    if (typeof window.switchToViewMode === 'function') {
+        // --- Konteks SPA index.html (perilaku lama, tidak diubah) ---
+        if (redirectTarget === 'checkout') {
+            if (typeof window.toggleCartDrawer === 'function') {
+                window.toggleCartDrawer(true);
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('Silakan lanjutkan checkout dari Keranjang Anda.', 'success');
+            }
+        } else if (role === 'admin') {
             window.switchToViewMode('admin');
         }
+        return;
     }
+
+    // --- Konteks halaman Login Customer terpisah (/login) ---
+    if (redirectTarget === 'checkout') {
+        try { sessionStorage.setItem('ynshop_pending_redirect', 'checkout'); } catch (_) { /* ignore */ }
+    }
+    window.location.href = 'index.html';
 }
 
 // ================= FLAGS INTERNAL SESI =================
@@ -362,18 +404,23 @@ window.closeLoginRequiredModal = function() {
     if (modal) modal.classList.add('hidden');
 };
 
+// --- Requirement pemisahan login: entry point checkout guard sekarang
+// mengarahkan ke halaman Login Customer terpisah (/login) alih-alih
+// membuka modal Auth lama di tempat. Penanda "checkout" disimpan lewat
+// sessionStorage (bukan hanya state di memori) karena berpindah halaman
+// akan me-reset state JS index.html; login.html & main.js membaca
+// penanda ini untuk melanjutkan checkout otomatis setelah login sukses
+// (lihat handlePostLoginRedirect() di atas & bootstrapApp() di main.js).
 window.redirectToLoginFromCheckout = function() {
-    if (state) state.pendingRedirect = 'checkout';
-    window.pendingRedirect = 'checkout';
+    try { sessionStorage.setItem('ynshop_pending_redirect', 'checkout'); } catch (_) { /* ignore */ }
     window.closeLoginRequiredModal();
-    window.openAuthModal('login');
+    window.location.href = 'login.html?redirect=checkout';
 };
 
 window.redirectToRegisterFromCheckout = function() {
-    if (state) state.pendingRedirect = 'checkout';
-    window.pendingRedirect = 'checkout';
+    try { sessionStorage.setItem('ynshop_pending_redirect', 'checkout'); } catch (_) { /* ignore */ }
     window.closeLoginRequiredModal();
-    window.openAuthModal('register');
+    window.location.href = 'login.html?redirect=checkout&tab=register';
 };
 
 // ================= SHELL MODAL AUTH (tab Login/Daftar) =================

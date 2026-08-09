@@ -1,0 +1,19 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firestore.rules",
+      "README.md",
+      "**/.*",
+      "**/node_modules/**",
+      "**/__MACOSX/**"
+    ],
+    "rewrites": [
+      { "source": "/login", "destination": "/login.html" },
+      { "source": "/admin-login", "destination": "/admin-login.html" }
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
+  }
+}

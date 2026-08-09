@@ -4,6 +4,7 @@
 // dan toggle dropdown/menu mobile.
 // ============================================================
 import { state } from './state.js';
+import { isValidAdminProfile } from './auth.js';
 
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -64,7 +65,7 @@ window.switchToViewMode = function(mode) {
     // Admin. Berlaku untuk semua jalur pemanggilan (klik menu, maupun
     // dipanggil langsung lewat console), bukan hanya menyembunyikan link.
     if (mode === 'admin') {
-        const isAdmin = !!(state.userProfile && state.userProfile.role === 'admin' && state.userProfile.status !== 'disabled');
+        const isAdmin = isValidAdminProfile(state.userProfile);
         if (!isAdmin) {
             if (typeof window.showToast === 'function') {
                 window.showToast('Akses ditolak. Anda tidak memiliki izin sebagai Admin.', 'error');

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel Login | YN SHOP</title>
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3',
+                            500: '#f43f5e', 600: '#e11d48', 700: '#be123c', 800: '#9f1239',
+                        }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="h-full flex items-center justify-center bg-slate-950 text-slate-100 antialiased selection:bg-brand-500 selection:text-white px-4">
+
+    <!-- Toast Notification Overlay (dipakai window.showToast dari js/ui.js) -->
+    <div id="toast-container"></div>
+
+    <!-- ================= HALAMAN LOGIN ADMIN ================= -->
+    <!-- Sengaja TIDAK ada: Register, Login Google, Login Customer, -->
+    <!-- Promo, atau Banner apa pun — hanya form login admin murni. -->
+    <div class="w-full max-w-sm">
+
+        <!-- Logo YN SHOP -->
+        <div class="flex flex-col items-center mb-8">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-rose-400 flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-brand-900/40 mb-3">
+                YN
+            </div>
+            <span class="text-lg font-bold tracking-tight text-white leading-none">YN SHOP</span>
+            <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Internal Use Only</span>
+        </div>
+
+        <!-- Card Login -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 sm:p-8">
+
+            <!-- Loading state: sedang memeriksa sesi aktif -->
+            <div id="admin-login-checking" class="py-10 text-center">
+                <div class="spinner mx-auto" style="border-color: rgba(255,255,255,0.15); border-top-color: #f43f5e;"></div>
+                <p class="text-xs text-slate-500 mt-3">Memeriksa sesi...</p>
+            </div>
+
+            <!-- Form Login Admin -->
+            <div id="admin-login-form-wrapper" class="hidden">
+                <div class="text-center mb-6">
+                    <div class="w-11 h-11 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center mx-auto mb-3 border border-slate-700">
+                        <i class="fa-solid fa-shield-halved text-lg"></i>
+                    </div>
+                    <h1 class="text-lg font-black text-white">Admin Panel Login</h1>
+                    <p class="text-xs text-slate-500 mt-1">Khusus untuk tim internal YN Shop.</p>
+                </div>
+
+                <form id="admin-login-form" onsubmit="handleAdminLogin(event)" class="space-y-4">
+                    <div id="admin-login-error-alert" class="hidden bg-rose-950/60 border border-rose-800 text-rose-300 text-[11px] font-medium p-3.5 rounded-xl flex items-start gap-2">
+                        <i class="fa-solid fa-circle-exclamation mt-0.5 text-xs"></i>
+                        <span id="admin-login-error-text"></span>
+                    </div>
+
+                    <div>
+                        <label for="admin-login-email" class="block text-xs font-bold text-slate-300 mb-1.5">Email</label>
+                        <input type="email"
+                               id="admin-login-email"
+                               required
+                               autocomplete="username"
+                               class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition"
+                               placeholder="admin@ynshop.com">
+                    </div>
+
+                    <div>
+                        <label for="admin-login-password" class="block text-xs font-bold text-slate-300 mb-1.5">Password</label>
+                        <input type="password"
+                               id="admin-login-password"
+                               required
+                               minlength="6"
+                               autocomplete="current-password"
+                               class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition"
+                               placeholder="••••••••">
+                    </div>
+
+                    <label class="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-400">
+                        <input type="checkbox" id="admin-login-remember" checked class="accent-brand-600 w-3.5 h-3.5 rounded">
+                        Ingat Saya
+                    </label>
+
+                    <button type="submit"
+                            id="btn-admin-login"
+                            class="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-900/40 transition active:scale-95 flex items-center justify-center">
+                        <span>Login</span>
+                        <div id="btn-admin-login-spinner" class="spinner hidden ms-2"></div>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <p class="text-center text-[11px] text-slate-600 mt-6">
+            &copy; <span id="admin-login-year"></span> YN SHOP. Halaman ini khusus administrator.
+        </p>
+    </div>
+
+    <script>document.getElementById('admin-login-year').textContent = new Date().getFullYear();</script>
+
+    <!-- Modul JS: js/ui.js (toast, dll) + js/admin-login.js (import otomatis
+         config.js, state.js, auth.js & login-logs.js -> tidak ada logika
+         yang ditulis ulang, murni memakai fungsi bersama yang sudah ada). -->
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/admin-login.js"></script>
+</body>
+</html>
