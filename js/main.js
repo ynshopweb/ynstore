@@ -17,9 +17,9 @@ import './state.js';
 import './ui.js';
 import './promo.js';
 import './profile.js';
-import './auth.js';
-import './login.js';
-import './register.js';
+import './auth/core.js';
+import './auth/login.js';
+import './auth/register.js';
 import { setupProductsSnapshot } from './products.js';
 import './cart.js';
 import './checkout.js';
@@ -28,12 +28,26 @@ import './admin.js';
 import './product-import-export.js';
 import { setupPaymentSettingsSnapshot } from './settings.js';
 import './reports.js';
-import './login-logs.js';
+import './auth/login-logs.js';
 import { setupUsersSnapshot } from './users-admin.js';
-import { isValidAdminProfile } from './auth.js';
+import { isValidAdminProfile } from './auth/core.js';
 import { auth, db, appId } from './config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// --- PENANDA KONTEKS SPA (dipakai js/auth/core.js -> handlePostLoginRedirect) ---
+// BUG FIX: sebelumnya handlePostLoginRedirect() memakai
+// `typeof window.switchToViewMode === 'function'` untuk mendeteksi
+// apakah sedang berjalan di dalam SPA index.html. Deteksi itu SALAH
+// karena login.html JUGA meng-import js/ui.js (untuk showToast, dll),
+// dan js/ui.js selalu mendefinisikan window.switchToViewMode — jadi
+// login.html ikut dianggap sebagai SPA, redirect ke index.html tidak
+// pernah terpicu setelah Login Customer sukses (user tertahan di
+// login.html walau Firebase Auth & toast "Login berhasil" sudah OK).
+// Sekarang SPA index.html menandai dirinya secara eksplisit lewat flag
+// ini SEBELUM interaksi apa pun mungkin terjadi, dan js/auth/core.js
+// memeriksa flag ini alih-alih menebak dari fungsi yang ada.
+window.__ynshopSpaContext = true;
 
 // --- PARTIAL LOADER ---
 async function loadPartial(el) {

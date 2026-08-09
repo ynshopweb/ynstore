@@ -314,54 +314,10 @@
         </div>
     </div>
 
-    <!-- Bootstrap khusus halaman /login: baca parameter URL (?tab=register,
-         ?redirect=checkout) SEBELUM modul auth dimuat, supaya tab & penanda
-         checkout langsung sesuai saat halaman pertama kali tampil. -->
-    <script type="module">
-        import './js/config.js';
-        import { state } from './js/state.js';
-        import './js/ui.js';
-        import './js/auth.js';
-        import './js/login.js';
-        import './js/register.js';
-        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { auth } from './js/config.js';
-
-        const params = new URLSearchParams(window.location.search);
-
-        // Requirement: checkout yang tertunda tetap dilanjutkan otomatis
-        // setelah login sukses (lihat handlePostLoginRedirect di js/auth.js).
-        if (params.get('redirect') === 'checkout') {
-            state.pendingRedirect = 'checkout';
-            window.pendingRedirect = 'checkout';
-        }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            if (params.get('tab') === 'register') {
-                window.switchAuthTab('register');
-            }
-        });
-
-        // Requirement: jika user yang membuka /login TERNYATA sudah login
-        // (sesi aktif), langsung arahkan ke toko (index.html) — baik
-        // customer maupun admin, karena halaman ini murni gerbang
-        // autentikasi, bukan tujuan akhir. Selama status sesi belum
-        // diketahui, form disembunyikan dulu (loader) supaya tidak ada
-        // kedipan form login sesaat sebelum redirect.
-        let initialCheckDone = false;
-        onAuthStateChanged(auth, (user) => {
-            if (initialCheckDone) return;
-            initialCheckDone = true;
-
-            if (user) {
-                window.location.href = 'index.html';
-                return;
-            }
-            const checking = document.getElementById('customer-login-checking');
-            const content = document.getElementById('customer-login-content');
-            if (checking) checking.classList.add('hidden');
-            if (content) content.classList.remove('hidden');
-        });
-    </script>
+    <!-- Satu-satunya entry point JS halaman ini. Semua logika (import
+         modul auth, baca parameter URL, redirect jika sudah login) ada
+         di js/auth/login-page.js supaya rapi & konsisten dengan folder
+         js/auth/ (tidak ada script inline berantakan di sini). -->
+    <script type="module" src="js/auth/login-page.js"></script>
 </body>
 </html>

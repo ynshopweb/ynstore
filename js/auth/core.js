@@ -8,17 +8,22 @@
 // shell modal Auth (tab login/daftar, dialog "Login Diperlukan",
 // "Email Belum Diverifikasi", "Akun Dinonaktifkan", "Sesi Berakhir").
 //
-// Form handler LOGIN CUSTOMER ada di js/login.js (dipakai halaman
-// khusus /login -> login.html). Form handler REGISTER ada di
-// js/register.js (dipakai juga oleh login.html). Form handler LOGIN
-// ADMIN ada di js/admin-login.js (dipakai halaman khusus /admin-login
-// -> admin-login.html). Rendering halaman Profil ada di js/profile.js.
-// Login History ada di js/login-logs.js. Manajemen Pengguna (admin)
-// ada di js/users-admin.js. Pemisahan ini supaya kode tetap rapi,
-// modular, dan tidak duplikat (lihat instruksi optimasi) — semua
-// modul di atas berbagi fungsi inti di file ini (translateAuthError,
-// syncUserProfileOnLogin, finalizeSuccessfulLogin, isValidAdminProfile,
-// dll), tidak ada logika autentikasi yang ditulis ulang.
+// SEMUA modul yang berhubungan dengan LOGIN dikumpulkan dalam satu
+// folder js/auth/ supaya rapi dan tidak berserakan di js/:
+//   js/auth/core.js         <- file ini (inti/shared, dipakai bersama)
+//   js/auth/login.js        <- form handler LOGIN CUSTOMER (login.html)
+//   js/auth/register.js     <- form handler REGISTER CUSTOMER (login.html)
+//   js/auth/admin-login.js  <- form handler LOGIN ADMIN (admin-login.html)
+//   js/auth/login-logs.js   <- Login History (dibaca tab Admin > Riwayat Login)
+//
+// Rendering halaman Profil ada di js/profile.js. Manajemen Pengguna
+// (admin) ada di js/users-admin.js — keduanya di luar folder auth/
+// karena bukan bagian dari proses LOGIN itu sendiri.
+//
+// Semua modul di folder auth/ berbagi fungsi inti di file ini
+// (translateAuthError, syncUserProfileOnLogin, finalizeSuccessfulLogin,
+// isValidAdminProfile, dll) — TIDAK ADA logika autentikasi yang
+// ditulis ulang/diduplikasi di modul lain.
 // ============================================================
 import {
     signOut,
@@ -27,16 +32,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-import { auth, db, appId } from './config.js';
-import { state } from './state.js';
+import { auth, db, appId } from '../config.js';
+import { state } from '../state.js';
 import { writeLoginLog, closeLoginLog } from './login-logs.js';
 
-// --- VALIDASI HAK AKSES ADMIN (dipakai bersama: ui.js & js/admin-login.js) ---
+// --- VALIDASI HAK AKSES ADMIN (dipakai bersama: ui.js & js/auth/admin-login.js) ---
 // Dipusatkan di sini (bukan diduplikasi di tiap pemanggil) supaya syarat
 // "role === 'admin' DAN status === 'active'" konsisten di seluruh app.
 //
 // CATATAN KEBIJAKAN EMAIL VERIFICATION UNTUK ADMIN:
-// Akun Customer (js/login.js) WAJIB emailVerified sebelum bisa login.
+// Akun Customer (js/auth/login.js) WAJIB emailVerified sebelum bisa login.
 // Akun ADMIN internal SENGAJA TIDAK diwajibkan emailVerified di sini —
 // akun admin dibuat & dikelola langsung oleh pemilik toko (lewat
 // Firebase Console atau Dashboard Manajemen Pengguna), bukan lewat
@@ -180,11 +185,15 @@ export async function finalizeSuccessfulLogin(user, extra = {}) {
 // --- REDIRECT SETELAH LOGIN BERHASIL (dipakai login.js & register.js) ---
 // Dipanggil dari 2 konteks berbeda:
 // 1. SPA index.html (quick re-login lewat modal Auth lama, mis. dialog
-//    "Sesi Berakhir") -> window.switchToViewMode tersedia di halaman
-//    ini, jadi perilaku ASLI dipertahankan apa adanya (tidak diubah)
-//    supaya fitur yang sudah berjalan tidak berubah.
+//    "Sesi Berakhir") -> window.__ynshopSpaContext ditandai oleh
+//    js/main.js, jadi perilaku ASLI dipertahankan apa adanya (tidak
+//    diubah) supaya fitur yang sudah berjalan tidak berubah.
 // 2. Halaman Login Customer terpisah /login (login.html) -> BUKAN SPA,
-//    window.switchToViewMode tidak ada di halaman ini. Login Customer
+//    window.__ynshopSpaContext TIDAK ditandai di halaman ini (meskipun
+//    login.html tetap meng-import js/ui.js untuk showToast, sehingga
+//    window.switchToViewMode ikut terdefinisi di sana juga — INI SEBABNYA
+//    kita tidak boleh lagi memakai "typeof window.switchToViewMode"
+//    sebagai deteksi SPA, lihat BUG FIX di js/main.js). Login Customer
 //    TIDAK PERNAH otomatis membuka Dashboard Admin (lihat instruksi
 //    pemisahan: Dashboard Admin hanya boleh diakses lewat /admin-login),
 //    jadi di sini kita selalu redirect balik ke toko (index.html), dan
@@ -195,7 +204,7 @@ export function handlePostLoginRedirect(role) {
     if (state) state.pendingRedirect = null;
     window.pendingRedirect = null;
 
-    if (typeof window.switchToViewMode === 'function') {
+    if (window.__ynshopSpaContext === true) {
         // --- Konteks SPA index.html (perilaku lama, tidak diubah) ---
         if (redirectTarget === 'checkout') {
             if (typeof window.toggleCartDrawer === 'function') {
@@ -205,7 +214,9 @@ export function handlePostLoginRedirect(role) {
                 window.showToast('Silakan lanjutkan checkout dari Keranjang Anda.', 'success');
             }
         } else if (role === 'admin') {
-            window.switchToViewMode('admin');
+            if (typeof window.switchToViewMode === 'function') {
+                window.switchToViewMode('admin');
+            }
         }
         return;
     }
@@ -240,7 +251,7 @@ let profileUnsubscribe = null;
 //
 // Perbaikan (2 lapis):
 // 1. `isLoginAttemptInProgress` — flag eksplisit yang di-set true selama
-//    login.js/register.js sedang menjalankan proses login/registrasi.
+//    login.js/auth/register.js sedang menjalankan proses login/registrasi.
 //    Selama flag ini true, transisi null TIDAK PERNAH dianggap sesi habis.
 // 2. Debounce — sebagai jaring pengaman tambahan untuk skenario lain di
 //    luar proses login manual (mis. refresh token flicker saat browsing),

@@ -114,10 +114,11 @@
 
     <script>document.getElementById('admin-login-year').textContent = new Date().getFullYear();</script>
 
-    <!-- Modul JS: js/ui.js (toast, dll) + js/admin-login.js (import otomatis
-         config.js, state.js, auth.js & login-logs.js -> tidak ada logika
-         yang ditulis ulang, murni memakai fungsi bersama yang sudah ada). -->
+    <!-- Modul JS: js/ui.js (toast, dll) + js/auth/admin-login.js (import
+         otomatis config.js, state.js, js/auth/core.js & js/auth/login-logs.js
+         -> tidak ada logika yang ditulis ulang, murni memakai fungsi
+         bersama yang sudah ada di folder js/auth/). -->
     <script type="module" src="js/ui.js"></script>
-    <script type="module" src="js/admin-login.js"></script>
+    <script type="module" src="js/auth/admin-login.js"></script>
 </body>
 </html>

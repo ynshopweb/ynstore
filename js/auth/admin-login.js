@@ -2,21 +2,21 @@
 // ADMIN LOGIN MODULE (khusus halaman /admin-login -> admin-login.html)
 // ============================================================
 // Menangani proses Login khusus Admin. TIDAK menduplikasi logika inti
-// autentikasi — semua dipakai bersama dari js/auth.js:
+// autentikasi — semua dipakai bersama dari js/auth/core.js:
 //   - translateAuthError()      -> terjemahan pesan error Firebase
 //   - finalizeSuccessfulLogin() -> sinkron profil, guard status
 //     disabled, catat Login History & Last Activity (SAMA PERSIS
-//     dengan yang dipakai alur Login Customer di js/login.js)
+//     dengan yang dipakai alur Login Customer di js/auth/login.js)
 //   - isValidAdminProfile()     -> validasi role === 'admin' &&
 //     status === 'active' (dipakai juga oleh js/ui.js switchToViewMode)
 //
-// Perbedaan dari Login Customer (js/login.js):
+// Perbedaan dari Login Customer (js/auth/login.js):
 // 1. Tidak ada opsi Login Google maupun Registrasi di halaman ini.
 // 2. WAJIB lolos validasi isValidAdminProfile() setelah Firebase Auth
 //    berhasil -> jika tidak lolos, akun otomatis di-logout dan pesan
 //    "Akun ini tidak memiliki hak akses sebagai Admin." ditampilkan.
 // 3. Verifikasi email (emailVerified) TIDAK diperiksa untuk akun admin
-//    -> kebijakan ini didokumentasikan di js/auth.js pada fungsi
+//    -> kebijakan ini didokumentasikan di js/auth/core.js pada fungsi
 //    isValidAdminProfile() (akun admin internal, dikelola manual).
 // 4. Login sukses SELALU menuju Dashboard Admin, tidak pernah ke
 //    halaman/alur customer.
@@ -30,13 +30,13 @@ import {
     signOut
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-import { auth } from './config.js';
+import { auth } from '../config.js';
 import {
     translateAuthError,
     finalizeSuccessfulLogin,
     isValidAdminProfile,
     setLoginAttemptInProgress
-} from './auth.js';
+} from './core.js';
 
 // Penanda sessionStorage yang dibaca oleh js/main.js saat index.html
 // dimuat, supaya user langsung diarahkan ke Dashboard Admin begitu
@@ -123,13 +123,13 @@ window.handleAdminLogin = async function (e) {
 
     try {
         // "Ingat Saya" -> sesi tetap tersimpan walau browser ditutup (sama
-        // seperti Login Customer di js/login.js, memakai fungsi Firebase yang sama).
+        // seperti Login Customer di js/auth/login.js, memakai fungsi Firebase yang sama).
         await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
 
         const cred = await signInWithEmailAndPassword(auth, email, password);
 
         // TIDAK ADA guard emailVerified di sini (lihat catatan kebijakan
-        // admin di js/auth.js -> isValidAdminProfile()).
+        // admin di js/auth/core.js -> isValidAdminProfile()).
         const profileData = await finalizeSuccessfulLogin(cred.user, { provider: 'password' });
 
         if (!profileData) {

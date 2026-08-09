@@ -1,7 +1,7 @@
 // ============================================================
 // FORMAT UTILS (shared helper, no duplicate code)
 // ============================================================
-// Dipakai oleh js/users-admin.js, js/login-logs.js, dan js/profile.js
+// Dipakai oleh js/users-admin.js, js/auth/login-logs.js, dan js/profile.js
 // untuk menampilkan tanggal/waktu secara konsisten. Firestore
 // menyimpan sebagian field sebagai angka (Date.now()) dan sebagian
 // lain sebagai Firestore Timestamp (serverTimestamp()) — helper ini

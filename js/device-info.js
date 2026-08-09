@@ -5,7 +5,7 @@
 // Browser / Sistem Operasi / Device dari navigator.userAgent, plus
 // pencarian alamat IP publik (best-effort, tidak memblokir login jika
 // gagal/offline — sesuai instruksi "IP (jika tersedia)").
-// Dipakai oleh js/login-logs.js saat mencatat Login History.
+// Dipakai oleh js/auth/login-logs.js saat mencatat Login History.
 // ============================================================
 
 export function getBrowserName() {

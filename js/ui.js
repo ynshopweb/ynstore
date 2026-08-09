@@ -4,7 +4,7 @@
 // dan toggle dropdown/menu mobile.
 // ============================================================
 import { state } from './state.js';
-import { isValidAdminProfile } from './auth.js';
+import { isValidAdminProfile } from './auth/core.js';
 
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -36,7 +36,7 @@ const GUEST_RESTRICTED_VIEWS = ['checkout', 'payment', 'customer-profile', 'orde
 window.navigateTo = function(viewId) {
     // --- GUARD: proteksi akses langsung ke halaman yang butuh login ---
     // Berlaku baik dipanggil lewat tombol/menu maupun langsung dari console/URL.
-    // state.user diisi oleh listener onAuthStateChanged (js/auth.js) sebagai
+    // state.user diisi oleh listener onAuthStateChanged (js/auth/core.js) sebagai
     // satu-satunya sumber kebenaran status login (bukan Local Storage).
     if (GUEST_RESTRICTED_VIEWS.includes(viewId) && !state.user) {
         if (viewId === 'checkout' && state) {

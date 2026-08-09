@@ -2,7 +2,7 @@
 // LOGIN LOGS MODULE
 // ============================================================
 // Menulis riwayat login ke koleksi artifacts/{appId}/login_logs
-// setiap kali login BERHASIL (dipanggil dari js/auth.js), dan
+// setiap kali login BERHASIL (dipanggil dari js/auth/core.js), dan
 // merender tab admin "Riwayat Login" (dipanggil dari js/admin.js
 // saat tab dibuka).
 // ============================================================
@@ -10,9 +10,9 @@ import {
     collection, addDoc, doc, updateDoc,
     query, orderBy, limit, getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { db, appId } from './config.js';
-import { getDeviceInfo, getPublicIp } from './device-info.js';
-import { formatFlexibleDateTime } from './format-utils.js';
+import { db, appId } from '../config.js';
+import { getDeviceInfo, getPublicIp } from '../device-info.js';
+import { formatFlexibleDateTime } from '../format-utils.js';
 
 const LOGS_COLLECTION = () => collection(db, 'artifacts', appId, 'login_logs');
 const MAX_LOGS_FETCHED = 200; // batas wajar supaya query tetap ringan

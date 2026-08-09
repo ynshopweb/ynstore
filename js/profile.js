@@ -6,7 +6,7 @@
 // dinonaktifkan), status verifikasi email, tanggal bergabung, last
 // login, dan last activity.
 //
-// Dipanggil otomatis oleh js/auth.js (listener real-time profil)
+// Dipanggil otomatis oleh js/auth/core.js (listener real-time profil)
 // setiap kali status login/profil berubah — lihat
 // window.renderProfilePageInfo di bawah. Riwayat pesanan customer
 // TETAP dirender oleh js/orders.js (tidak diubah).

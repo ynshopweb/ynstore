@@ -16,7 +16,7 @@ import {
     signOut
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-import { auth } from './config.js';
+import { auth } from '../config.js';
 import {
     translateAuthError,
     showAuthError,
@@ -25,7 +25,7 @@ import {
     handlePostLoginRedirect,
     setPendingUnverifiedUser,
     setLoginAttemptInProgress
-} from './auth.js';
+} from './core.js';
 
 const googleProvider = new GoogleAuthProvider();
 

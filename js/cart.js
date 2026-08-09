@@ -133,7 +133,7 @@ import { getEffectivePrice, getPromoInfo } from './promo.js';
 
             // --- VALIDASI LOGIN SAAT TOMBOL CHECKOUT DITEKAN ---
             // Sumber kebenaran status login: Firebase Authentication (state.user
-            // diisi oleh onAuthStateChanged di js/auth.js), bukan Local Storage.
+            // diisi oleh onAuthStateChanged di js/auth/core.js), bukan Local Storage.
             // Guest User dibatalkan prosesnya & diminta login/daftar terlebih
             // dahulu. Isi keranjang TIDAK dihapus/direfresh.
             if (!state.user) {

@@ -7,7 +7,7 @@
 // 3. Kirim Email Verification otomatis.
 // 4. User TIDAK langsung masuk ke dashboard — ditampilkan layar
 //    "Registrasi Berhasil" yang meminta mereka memverifikasi email
-//    dulu sebelum bisa login (lihat js/login.js untuk guard-nya).
+//    dulu sebelum bisa login (lihat js/auth/login.js untuk guard-nya).
 // ============================================================
 import {
     createUserWithEmailAndPassword,
@@ -16,15 +16,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-import { auth, db, appId } from './config.js';
+import { auth, db, appId } from '../config.js';
 import {
     translateAuthError,
     showAuthError,
     hideAuthError,
     setPendingUnverifiedUser,
     setLoginAttemptInProgress
-} from './auth.js';
-import { isPhoneAvailable, reservePhoneNumber } from './phone-registry.js';
+} from './core.js';
+import { isPhoneAvailable, reservePhoneNumber } from '../phone-registry.js';
 
 window.handleAuthRegister = async function(e) {
     e.preventDefault();

@@ -12,7 +12,7 @@
 // Status "Email Verified" TIDAK bisa diambil live dari Firebase Auth
 // untuk user lain (butuh Admin SDK di server, tidak tersedia di app
 // statis ini). Sebagai gantinya field `emailVerified` di Firestore
-// di-mirror otomatis oleh js/auth.js setiap kali user itu berhasil
+// di-mirror otomatis oleh js/auth/core.js setiap kali user itu berhasil
 // login (di titik itu status verifikasi sudah pasti benar).
 // ============================================================
 import { collectionGroup, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
