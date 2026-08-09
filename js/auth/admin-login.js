@@ -30,7 +30,8 @@ import {
     signOut
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-import { auth } from '../config.js';
+import { auth, db, appId } from '../config.js';
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import {
     translateAuthError,
     finalizeSuccessfulLogin,
@@ -69,6 +70,30 @@ function showForm() {
     if (formWrap) formWrap.classList.remove('hidden');
 }
 
+// ================= AKAR MASALAH & PERBAIKANNYA =================
+// syncUserProfileOnLogin() (dipanggil oleh finalizeSuccessfulLogin() di
+// js/auth/core.js) SENGAJA auto-membuat dokumen profil baru dengan
+// role default 'customer' & status 'active' kalau belum ada dokumen
+// sama sekali -- ini BENAR untuk alur Login Customer (mis. Google
+// Sign-In pertama kali), tapi SALAH kalau ikut terpicu lewat alur
+// Login Admin: akun yang seharusnya admin (baru dibuat lewat Firebase
+// Console, profil Firestore-nya belum pernah dibuat sama sekali) akan
+// diam-diam "diturunkan" jadi profil customer begitu mencoba login
+// admin pertama kali -- lalu ditolak dengan pesan generik "Akun ini
+// tidak memiliki hak akses sebagai Admin.", padahal akar masalahnya
+// adalah PROFIL ADMIN BELUM PERNAH DIBUAT, bukan "role salah".
+//
+// Perbaikan: cek dulu apakah dokumen profil SUDAH ADA di Firestore
+// SEBELUM memanggil finalizeSuccessfulLogin() sama sekali. Kalau belum
+// ada -> jangan biarkan auto-provisioning customer itu jalan lewat
+// gerbang admin; langsung logout & tampilkan pesan yang menunjuk akar
+// masalah sebenarnya (profil admin belum dibuat), bukan pesan generik
+// "bukan admin" yang menyembunyikan penyebabnya.
+async function fetchAdminProfileSnapshot(uid) {
+    const ref = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data');
+    return getDoc(ref);
+}
+
 // ================= REQUIREMENT: SESI ADMIN AKTIF -> LANGSUNG DASHBOARD =================
 // Jika admin sudah punya sesi Firebase Auth aktif (mis. baru saja login
 // lewat tab lain, atau kembali membuka /admin-login), form TIDAK perlu
@@ -89,6 +114,17 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     try {
+        const snap = await fetchAdminProfileSnapshot(user.uid);
+        if (!snap.exists()) {
+            // Profil belum pernah dibuat -> JANGAN panggil
+            // finalizeSuccessfulLogin() (akan auto-membuat profil
+            // customer). Logout diam-diam saja, biarkan form muncul
+            // supaya admin bisa login ulang setelah profilnya dibuat.
+            await signOut(auth);
+            showForm();
+            return;
+        }
+
         const profileData = await finalizeSuccessfulLogin(user, { provider: 'password' });
         if (profileData && isValidAdminProfile(profileData)) {
             goToAdminDashboard();
@@ -128,6 +164,22 @@ window.handleAdminLogin = async function (e) {
 
         const cred = await signInWithEmailAndPassword(auth, email, password);
 
+        // ================= CEK AKAR MASALAH SEBELUM SYNC PROFIL =================
+        // Lihat penjelasan lengkap di fetchAdminProfileSnapshot() di atas.
+        // Kalau dokumen profil BELUM ADA sama sekali, hentikan di sini —
+        // JANGAN panggil finalizeSuccessfulLogin(), supaya tidak diam-diam
+        // membuat profil 'customer' untuk akun yang seharusnya admin.
+        const profileSnap = await fetchAdminProfileSnapshot(cred.user.uid);
+        if (!profileSnap.exists()) {
+            await signOut(auth);
+            showAdminLoginError(
+                'Profil akun ini belum terdaftar sebagai Admin di sistem. ' +
+                'Hubungi pemilik toko untuk membuatkan dokumen profil Admin ' +
+                '(role: "admin", status: "active") di Firestore untuk akun ini.'
+            );
+            return;
+        }
+
         // TIDAK ADA guard emailVerified di sini (lihat catatan kebijakan
         // admin di js/auth/core.js -> isValidAdminProfile()).
         const profileData = await finalizeSuccessfulLogin(cred.user, { provider: 'password' });
@@ -140,6 +192,10 @@ window.handleAdminLogin = async function (e) {
         }
 
         // ================= VALIDASI ROLE & STATUS ADMIN =================
+        // Sampai di sini, profil SUDAH ADA (dicek di atas) tapi role/status
+        // tidak memenuhi syarat (mis. role masih 'customer', atau status
+        // bukan 'active') -> pesan ini sekarang benar-benar berarti
+        // "role/status salah", bukan lagi menutupi kasus "profil belum ada".
         if (!isValidAdminProfile(profileData)) {
             await signOut(auth);
             showAdminLoginError('Akun ini tidak memiliki hak akses sebagai Admin.');
