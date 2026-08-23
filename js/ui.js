@@ -81,10 +81,21 @@ window.switchToViewMode = function(mode) {
     const customerFooter = document.getElementById('customer-footer');
     const roleIndicator = document.getElementById('current-role-indicator');
 
+    // PERBAIKAN LIFECYCLE: pengaman tambahan terhadap race condition —
+    // elemen-elemen ini berasal dari partials/*.html yang dimuat async
+    // lewat fetch() (lihat js/main.js -> loadAllPartials()). Kalau fungsi
+    // ini sampai terpanggil sebelum partials selesai dimuat, sebelumnya
+    // baris di bawah akan melempar TypeError ("Cannot read properties of
+    // null") karena tidak ada null-check, yang bisa membuat proses
+    // switchToViewMode berhenti di tengah jalan (halaman terlihat "nyangkut"
+    // separuh customer separuh admin). Sekarang aman: kalau partials
+    // belum siap, cukup keluar dan tidak melakukan apa-apa.
+    if (!customerMain || !adminMain) return;
+
     if (mode === 'admin') {
-        customerHeader.classList.add('hidden');
+        if (customerHeader) customerHeader.classList.add('hidden');
         customerMain.classList.add('hidden');
-        customerFooter.classList.add('hidden');
+        if (customerFooter) customerFooter.classList.add('hidden');
         adminMain.classList.remove('hidden');
         if (roleIndicator) {
             roleIndicator.textContent = "Admin Panel";
@@ -92,9 +103,9 @@ window.switchToViewMode = function(mode) {
         }
         window.renderAdminDashboard();
     } else {
-        customerHeader.classList.remove('hidden');
+        if (customerHeader) customerHeader.classList.remove('hidden');
         customerMain.classList.remove('hidden');
-        customerFooter.classList.remove('hidden');
+        if (customerFooter) customerFooter.classList.remove('hidden');
         adminMain.classList.add('hidden');
         if (roleIndicator) {
             roleIndicator.textContent = "Customer View";

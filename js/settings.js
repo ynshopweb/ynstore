@@ -24,9 +24,12 @@ import { db } from './config.js';
 import { state } from './state.js';
 
 // --- FIRESTORE SNAPSHOT PENGATURAN PEMBAYARAN (real-time) ---
+let paymentSettingsUnsubscribe = null;
 export function setupPaymentSettingsSnapshot() {
+    // Pengaman anti-subscribe-dobel — lihat catatan di setupProductsSnapshot() (js/products.js).
+    if (paymentSettingsUnsubscribe) return;
     const settingsRef = doc(db, 'settings', 'payment');
-    onSnapshot(settingsRef, (snap) => {
+    paymentSettingsUnsubscribe = onSnapshot(settingsRef, (snap) => {
         if (snap.exists()) {
             state.paymentSettings = { ...state.paymentSettings, ...snap.data() };
         }

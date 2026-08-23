@@ -72,8 +72,21 @@
 
                 <!-- ADMIN TAB 2: ORDERS VERIFICATION & STATUS -->
                 <div id="admin-subview-orders" class="hidden space-y-4">
-                    <div class="flex justify-between items-center">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
                         <h2 class="text-lg font-bold text-white">Kelola Transaksi & Verifikasi Bukti QRIS</h2>
+                        <!-- Hapus transaksi lama (sudah tuntas & lebih dari 30/90 hari) sekaligus -->
+                        <div class="flex items-center gap-2">
+                            <select id="delete-old-transactions-days" class="bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-bold rounded-lg px-2 py-2">
+                                <option value="30">Lebih dari 30 hari</option>
+                                <option value="90">Lebih dari 90 hari</option>
+                            </select>
+                            <button id="btn-delete-old-transactions" type="button"
+                                    onclick="window.deleteOldTransactions(document.getElementById('delete-old-transactions-days').value)"
+                                    class="px-3 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-[11px] rounded-lg transition flex items-center gap-1.5"
+                                    title="Hapus semua transaksi berstatus Selesai/Siap Diambil yang sudah lebih tua dari batas waktu yang dipilih">
+                                <i class="fa-solid fa-broom"></i> Hapus Transaksi Lama
+                            </button>
+                        </div>
                     </div>
                     <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
                         <div class="overflow-x-auto">

@@ -30,7 +30,8 @@ import { setupPaymentSettingsSnapshot } from './settings.js';
 import './reports.js';
 import './auth/login-logs.js';
 import { setupUsersSnapshot } from './users-admin.js';
-import { isValidAdminProfile } from './auth/core.js';
+import { isValidAdminProfile, syncAuthHeaderUI } from './auth/core.js';
+import { state } from './state.js';
 import { auth, db, appId } from './config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -126,6 +127,31 @@ function resumePendingAdminDashboard() {
             const profileData = snap.exists() ? snap.data() : null;
 
             if (isValidAdminProfile(profileData)) {
+                // ================= BUG FIX (RACE CONDITION UTAMA) =================
+                // window.switchToViewMode('admin') (js/ui.js) memvalidasi admin
+                // dengan MEMBACA state.userProfile — tapi state.userProfile diisi
+                // oleh proses ASYNC LAIN yang sepenuhnya terpisah: listener
+                // onSnapshot() di js/auth/core.js (module-level onAuthStateChanged
+                // + onSnapshot profil). getDoc() di atas dan onSnapshot() itu
+                // adalah DUA pembacaan Firestore yang berjalan independen —
+                // tidak ada jaminan urutan mana yang selesai lebih dulu.
+                //
+                // Kalau onSnapshot() di core.js BELUM sempat mengisi
+                // state.userProfile pada saat baris ini dijalankan (sangat
+                // mungkin terjadi, apalagi tepat setelah reload penuh dari
+                // admin-login.html -> index.html), switchToViewMode('admin')
+                // akan salah menyimpulkan "bukan admin" dan MENOLAK admin yang
+                // sebenarnya valid — persis pola bug "kadang setelah login
+                // berhasil malah gagal masuk dashboard / balik lagi", karena
+                // hasilnya tergantung kecepatan jaringan (murni soal timing).
+                //
+                // Perbaikan: isi state.userProfile (dan state.user) SEKARANG
+                // JUGA secara synchronous dari profil yang BARU SAJA divalidasi
+                // di atas, sebelum memanggil switchToViewMode — sama persis
+                // seperti pola yang sudah dipakai finalizeSuccessfulLogin() di
+                // js/auth/core.js untuk mengatasi race condition yang identik.
+                state.user = user;
+                state.userProfile = profileData;
                 window.switchToViewMode('admin');
             } else if (typeof window.showToast === 'function') {
                 window.showToast('Akses ditolak. Anda tidak memiliki izin sebagai Admin.', 'error');
@@ -141,6 +167,17 @@ function resumePendingAdminDashboard() {
 // --- BOOTSTRAP APLIKASI ---
 async function bootstrapApp() {
     await loadAllPartials();
+
+    // ================= PERBAIKAN RACE CONDITION =================
+    // Panggil ulang sinkronisasi UI header/nav SEKARANG, memakai
+    // state.user/state.userProfile yang sudah ada saat ini (kalau ada).
+    // Ini "jaring pengaman" untuk kasus listener profil di js/auth/core.js
+    // sempat menyala LEBIH DULU daripada partials selesai di-fetch (race
+    // condition antara pemulihan sesi Firebase Auth vs fetch() partials
+    // -- lihat penjelasan lengkap di syncAuthHeaderUI(), js/auth/core.js).
+    // Tanpa ini, header bisa "tersangkut" menampilkan status Tamu walau
+    // user sebenarnya sudah login, sampai ada perubahan lain pada profil.
+    syncAuthHeaderUI();
 
     // Aktifkan listener real-time Firestore (produk & pesanan)
     setupProductsSnapshot();

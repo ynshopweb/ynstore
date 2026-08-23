@@ -19,9 +19,17 @@ function getProductStock(product) {
 window.getProductStock = getProductStock;
 
 // --- FIRESTORE SNAPSHOT PRODUK (real-time) ---
+let productsUnsubscribe = null;
 export function setupProductsSnapshot() {
+    // PERBAIKAN: pengaman terhadap inisialisasi berulang — kalau fungsi
+    // ini sampai terpanggil lebih dari sekali (mis. bootstrapApp yang
+    // tidak sengaja berjalan dua kali), jangan buat listener onSnapshot
+    // baru lagi di atas yang lama (listener lama akan tetap aktif dan
+    // menumpuk, menyebabkan render/kalkulasi ganda setiap ada perubahan
+    // data). Pola yang sama seperti setupUsersSnapshot() di users-admin.js.
+    if (productsUnsubscribe) return;
     const productsCol = collection(db, 'artifacts', appId, 'products');
-    onSnapshot(productsCol, (snapshot) => {
+    productsUnsubscribe = onSnapshot(productsCol, (snapshot) => {
         if (snapshot.empty) {
             // Seed initial products jika koleksi masih kosong
             INITIAL_PRODUCTS.forEach(p => {

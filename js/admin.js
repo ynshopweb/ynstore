@@ -107,10 +107,11 @@ function renderAdminOrdersTable() {
                 ${o.proofImage ? `<button onclick="window.viewProofModal('${o.proofImage}')" class="px-2 py-1 bg-slate-700 text-slate-200 rounded text-[10px]"><i class="fa-solid fa-image me-1"></i> Lihat Foto</button>` : '<span class="text-slate-500 italic">Belum upload</span>'}
             </td>
             <td class="p-3.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${window.getStatusBadgeColor(o.status)}">${o.status}</span></td>
-            <td class="p-3.5 text-right space-x-1">
+            <td class="p-3.5 text-right space-x-1 whitespace-nowrap">
                 <button onclick="window.updateOrderStatus('${o.orderId}', 'Diverifikasi & Dikemas')" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded">Verifikasi</button>
                 <button onclick="window.updateOrderStatus('${o.orderId}', 'Siap Diambil di Toko')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded">Siap Ambil</button>
                 <button onclick="window.updateOrderStatus('${o.orderId}', 'Selesai')" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white font-bold text-[10px] rounded">Selesai</button>
+                <button onclick="window.deleteOrder('${o.orderId}')" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded" title="Hapus Transaksi"><i class="fa-solid fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
@@ -122,6 +123,81 @@ window.updateOrderStatus = async function(orderId, newStatus) {
         window.showToast(`Status order ${orderId} diubah ke '${newStatus}'`, 'success');
     } catch(e) {
         window.showToast('Gagal update status: ' + e.message, 'error');
+    }
+};
+
+// ================= HAPUS TRANSAKSI (Kelola Transaksi & Verifikasi Bukti QRIS) =================
+// Requirement: admin ingin bisa membersihkan transaksi lama (mis. yang
+// sudah lebih dari 1 bulan) dari tabel "Kelola Transaksi & Verifikasi
+// Bukti QRIS", baik satu per satu maupun sekaligus.
+
+// --- HAPUS SATU TRANSAKSI (tombol per baris) ---
+window.deleteOrder = async function(orderId) {
+    if (!confirm(`Yakin ingin menghapus transaksi ${orderId}?\n\nData transaksi ini (termasuk bukti QRIS yang tersimpan) akan hilang permanen dan tidak bisa dikembalikan.`)) {
+        return;
+    }
+    try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'orders', orderId));
+        window.showToast(`Transaksi ${orderId} berhasil dihapus.`, 'success');
+    } catch (e) {
+        console.error('Gagal menghapus transaksi:', e);
+        window.showToast('Gagal menghapus transaksi: ' + e.message, 'error');
+    }
+};
+
+// --- HAPUS TRANSAKSI LAMA SEKALIGUS (tombol massal di atas tabel) ---
+// Hanya menghapus transaksi yang SUDAH TUNTAS (status 'Selesai' atau
+// 'Siap Diambil di Toko') dan lebih tua dari batas waktu yang dipilih.
+// Transaksi yang masih berjalan (Menunggu Pembayaran / Menunggu
+// Verifikasi Admin / Diverifikasi & Dikemas) SENGAJA TIDAK PERNAH ikut
+// terhapus otomatis walau sudah lama, supaya pesanan yang terlantar
+// tetap terlihat oleh admin untuk ditindaklanjuti, bukan hilang diam-diam.
+const ORDER_AGE_THRESHOLDS_DAYS = { '30': 30, '90': 90 };
+
+function getEligibleOldOrders(days) {
+    const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
+    return state.orders.filter(o =>
+        (o.createdAt || 0) < cutoff &&
+        (o.status === 'Selesai' || o.status === 'Siap Diambil di Toko')
+    );
+}
+
+window.deleteOldTransactions = async function(days) {
+    days = ORDER_AGE_THRESHOLDS_DAYS[String(days)] || 30;
+    const eligible = getEligibleOldOrders(days);
+
+    if (eligible.length === 0) {
+        window.showToast(`Tidak ada transaksi selesai yang sudah lebih dari ${days} hari.`, 'info');
+        return;
+    }
+
+    const confirmed = confirm(
+        `Ditemukan ${eligible.length} transaksi (status Selesai/Siap Diambil) yang sudah lebih dari ${days} hari.\n\n` +
+        `Semua transaksi tersebut akan DIHAPUS PERMANEN, termasuk bukti QRIS-nya. Lanjutkan?`
+    );
+    if (!confirmed) return;
+
+    const btn = document.getElementById('btn-delete-old-transactions');
+    if (btn) btn.disabled = true;
+
+    let successCount = 0;
+    const failedIds = [];
+    for (const order of eligible) {
+        try {
+            await deleteDoc(doc(db, 'artifacts', appId, 'orders', order.orderId));
+            successCount++;
+        } catch (e) {
+            console.error(`Gagal menghapus transaksi ${order.orderId}:`, e);
+            failedIds.push(order.orderId);
+        }
+    }
+
+    if (btn) btn.disabled = false;
+
+    if (failedIds.length === 0) {
+        window.showToast(`${successCount} transaksi lama berhasil dihapus.`, 'success');
+    } else {
+        window.showToast(`${successCount} transaksi terhapus, ${failedIds.length} gagal dihapus (lihat console).`, 'error');
     }
 };
 

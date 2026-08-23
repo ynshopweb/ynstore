@@ -9,9 +9,12 @@ import { db, appId } from './config.js';
 import { state } from './state.js';
 
 // --- FIRESTORE SNAPSHOT ORDERS (real-time) ---
+let ordersUnsubscribe = null;
 export function setupOrdersSnapshot() {
+    // Pengaman anti-subscribe-dobel — lihat catatan di setupProductsSnapshot() (js/products.js).
+    if (ordersUnsubscribe) return;
     const ordersCol = collection(db, 'artifacts', appId, 'orders');
-    onSnapshot(ordersCol, (snapshot) => {
+    ordersUnsubscribe = onSnapshot(ordersCol, (snapshot) => {
         const list = [];
         snapshot.forEach(d => list.push({ id: d.id, ...d.data() }));
         // urutkan descending berdasarkan createdAt

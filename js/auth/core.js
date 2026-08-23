@@ -294,6 +294,88 @@ async function forceLogoutDisabledAccount() {
 }
 
 // ================= LISTENER STATUS LOGIN (Firebase) =================
+
+// --- SINKRONISASI UI HEADER/NAV DARI state.user + state.userProfile ---
+// Dipisah jadi fungsi tersendiri (BUKAN diubah logikanya) supaya bisa
+// dipanggil ulang dari luar (lihat js/main.js -> bootstrapApp()).
+//
+// AKAR MASALAH: fungsi ini awalnya HANYA dipanggil dari dalam callback
+// onSnapshot() profil di bawah. onSnapshot() itu didaftarkan dari
+// listener onAuthStateChanged yang diregistrasi saat MODULE INI di-import
+// (yaitu SEBELUM DOMContentLoaded/bootstrapApp berjalan). Elemen DOM yang
+// disentuh fungsi ini (nama user di header, link Masuk/Daftar vs Profil,
+// link menu Admin, dsb) semuanya berasal dari partials/*.html yang baru
+// disuntikkan ke DOM secara ASYNC lewat fetch() di loadAllPartials()
+// (js/main.js), setelah DOMContentLoaded.
+//
+// Firebase Auth memulihkan sesi tersimpan (IndexedDB) juga secara async,
+// dan TIDAK ADA jaminan urutan mana yang selesai lebih dulu — race
+// condition murni. Kalau pemulihan sesi Firebase selesai LEBIH DULU
+// (skenario yang sangat mungkin, terutama di koneksi lambat/perangkat
+// lemah), maka pemanggilan PERTAMA fungsi ini berjalan sebelum elemen
+// header ada di DOM -> seluruh update UI di bawah SENYAP (karena ada
+// null-check di tiap elemen), dan TIDAK PERNAH dicoba ulang sampai ada
+// perubahan lain pada dokumen profil (yang bisa saja tidak pernah terjadi
+// sepanjang sesi itu). Efeknya: user SEBENARNYA sudah login (state.user &
+// state.userProfile terisi benar), tapi header masih menampilkan "Tamu" /
+// tombol Masuk-Daftar seolah belum login — persis gejala "session login
+// kadang seperti hilang sendiri".
+//
+// Perbaikan: js/main.js memanggil ulang fungsi ini SEKALI LAGI setelah
+// loadAllPartials() selesai, sebagai "catch-up" — memakai state.user /
+// state.userProfile yang sudah ada saat itu, tanpa menunggu perubahan
+// data lagi. Kalau saat itu belum ada sesi sama sekali, fungsi ini aman
+// dipanggil (menampilkan tampilan "Tamu" seperti biasa).
+export function syncAuthHeaderUI() {
+    const user = state.user;
+    const profileData = state.userProfile || (user
+        ? { nama: user.email ? user.email.split('@')[0] : 'Pelanggan', email: user.email, role: 'customer', status: 'active' }
+        : null);
+
+    const navName = document.getElementById('user-nav-name');
+    const authLinksGuest = document.getElementById('auth-links-guest');
+    const authLinksLogged = document.getElementById('auth-links-logged');
+    const adminMenuLink = document.getElementById('admin-menu-link');
+    const dropName = document.getElementById('dropdown-user-name');
+    const dropEmail = document.getElementById('dropdown-user-email');
+
+    if (user && profileData) {
+        if (navName) navName.textContent = profileData.nama || 'Pelanggan';
+        if (dropName) dropName.textContent = profileData.nama || 'Pelanggan';
+        if (dropEmail) dropEmail.textContent = profileData.email || user.email;
+
+        if (authLinksGuest) authLinksGuest.classList.add('hidden');
+        if (authLinksLogged) authLinksLogged.classList.remove('hidden');
+
+        if (adminMenuLink) {
+            adminMenuLink.classList.toggle('hidden', profileData.role !== 'admin');
+        }
+
+        if (typeof window.renderProfilePageInfo === 'function') {
+            window.renderProfilePageInfo(profileData, user);
+        }
+        if (typeof window.renderAdminUsersTable === 'function' && state.viewMode === 'admin') {
+            window.renderAdminUsersTable();
+        }
+
+        // Pre-fill checkout form jika user sudah login
+        const chkName = document.getElementById('checkout-name');
+        const chkEmail = document.getElementById('checkout-email');
+        const chkPhone = document.getElementById('checkout-phone');
+        if (chkName) chkName.value = profileData.nama || '';
+        if (chkEmail) chkEmail.value = profileData.email || user.email || '';
+        if (chkPhone) chkPhone.value = profileData.noHp || '';
+    } else {
+        if (navName) navName.textContent = 'Tamu';
+        if (dropName) dropName.textContent = 'Belum Login';
+        if (dropEmail) dropEmail.textContent = 'Silakan masuk ke akun Anda';
+
+        if (authLinksGuest) authLinksGuest.classList.remove('hidden');
+        if (authLinksLogged) authLinksLogged.classList.add('hidden');
+        if (adminMenuLink) adminMenuLink.classList.add('hidden');
+    }
+}
+
 onAuthStateChanged(auth, async (user) => {
     const hadSession = !!state.user;
     state.user = user;
@@ -304,11 +386,6 @@ onAuthStateChanged(auth, async (user) => {
         profileUnsubscribe();
         profileUnsubscribe = null;
     }
-
-    const navName = document.getElementById('user-nav-name');
-    const authLinksGuest = document.getElementById('auth-links-guest');
-    const authLinksLogged = document.getElementById('auth-links-logged');
-    const adminMenuLink = document.getElementById('admin-menu-link');
 
     if (user) {
         // User berhasil (kembali) ter-autentikasi -> batalkan dialog
@@ -335,50 +412,14 @@ onAuthStateChanged(auth, async (user) => {
                 return;
             }
 
-            if (navName) navName.textContent = profileData.nama || 'Pelanggan';
-
-            const dropName = document.getElementById('dropdown-user-name');
-            const dropEmail = document.getElementById('dropdown-user-email');
-            if (dropName) dropName.textContent = profileData.nama || 'Pelanggan';
-            if (dropEmail) dropEmail.textContent = profileData.email || user.email;
-
-            if (authLinksGuest) authLinksGuest.classList.add('hidden');
-            if (authLinksLogged) authLinksLogged.classList.remove('hidden');
-
-            if (adminMenuLink) {
-                adminMenuLink.classList.toggle('hidden', profileData.role !== 'admin');
-            }
-
-            if (typeof window.renderProfilePageInfo === 'function') {
-                window.renderProfilePageInfo(profileData, user);
-            }
-            if (typeof window.renderAdminUsersTable === 'function' && state.viewMode === 'admin') {
-                window.renderAdminUsersTable();
-            }
-
-            // Pre-fill checkout form jika user sudah login
-            const chkName = document.getElementById('checkout-name');
-            const chkEmail = document.getElementById('checkout-email');
-            const chkPhone = document.getElementById('checkout-phone');
-            if (chkName) chkName.value = profileData.nama || '';
-            if (chkEmail) chkEmail.value = profileData.email || user.email || '';
-            if (chkPhone) chkPhone.value = profileData.noHp || '';
+            syncAuthHeaderUI();
         }, (err) => {
             console.error('Error listening to user profile:', err);
         });
 
     } else {
         state.userProfile = null;
-        if (navName) navName.textContent = 'Tamu';
-
-        const dropName = document.getElementById('dropdown-user-name');
-        const dropEmail = document.getElementById('dropdown-user-email');
-        if (dropName) dropName.textContent = 'Belum Login';
-        if (dropEmail) dropEmail.textContent = 'Silakan masuk ke akun Anda';
-
-        if (authLinksGuest) authLinksGuest.classList.remove('hidden');
-        if (authLinksLogged) authLinksLogged.classList.add('hidden');
-        if (adminMenuLink) adminMenuLink.classList.add('hidden');
+        syncAuthHeaderUI();
 
         // --- DETEKSI SESI BERAKHIR TANPA SEBAB EKSPLISIT ---
         // Hanya dipertimbangkan jika sebelumnya user memang sedang login
