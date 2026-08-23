@@ -15,6 +15,7 @@ import { doc, addDoc, updateDoc, deleteDoc, collection } from "https://www.gstat
 import { db, appId } from './config.js';
 import { state } from './state.js';
 import { getPromoInfo, formatCountdown } from './promo.js';
+import { NAV_STORAGE_KEYS, persistNav } from './ui.js';
 
 window.switchAdminTab = function(tab) {
     // --- GUARD KHUSUS: tab "Laporan Penjualan" hanya untuk admin ---
@@ -26,6 +27,11 @@ window.switchAdminTab = function(tab) {
         }
         return;
     }
+
+    // Simpan tab ini sebagai "tab terakhir" supaya bisa dipulihkan kalau
+    // browser di-refresh saat sedang berada di Panel Admin (lihat
+    // js/main.js -> resumePendingAdminDashboard()).
+    persistNav(NAV_STORAGE_KEYS.adminTab, tab);
 
     ['dashboard', 'orders', 'products', 'settings', 'laporan', 'users', 'login-logs'].forEach(t => {
         const el = document.getElementById(`admin-subview-${t}`);

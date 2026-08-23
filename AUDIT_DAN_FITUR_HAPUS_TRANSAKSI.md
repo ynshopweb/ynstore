@@ -137,3 +137,65 @@ Transaksi:
 - Pertimbangkan menambahkan log/audit trail (mis. koleksi `deleted_orders_log`)
   kalau ke depannya butuh jejak siapa & kapan suatu transaksi dihapus, karena
   saat ini penghapusan bersifat permanen tanpa riwayat.
+
+---
+
+# Fitur Baru: Pertahankan Halaman Terakhir Setelah Refresh
+
+## Masalah
+Sebelumnya, posisi/halaman yang sedang dibuka (view customer seperti
+Produk/Profil Saya, mode Panel Admin, maupun tab di dalam Panel Admin)
+**hanya disimpan di memori JavaScript** (`state.activeView`, `state.viewMode`),
+sehingga hilang setiap kali browser di-refresh (F5/Cmd+R/Ctrl+R). Untuk
+Panel Admin dampaknya lebih parah: `resumePendingAdminDashboard()`
+(`js/main.js`) hanya aktif lewat penanda **sekali pakai**
+(`ynshop_open_admin_dashboard`, dibuat oleh `admin-login.html` dan langsung
+dihapus setelah dibaca) atau hash `#admin` di URL — begitu admin sudah
+masuk Dashboard lalu refresh **tanpa** hash tersebut, penanda sekali pakai
+itu sudah terpakai, dan admin terlempar balik ke tampilan customer/Beranda
+walau sesi login & role admin-nya masih sah sepenuhnya.
+
+## Perbaikan
+Ditambahkan penyimpanan posisi navigasi ke `sessionStorage` (bertahan
+selama tab/browser belum ditutup, otomatis bersih saat ditutup — sengaja
+BUKAN `localStorage` supaya tidak "nyangkut" selamanya):
+
+| Key sessionStorage | Diisi oleh | Dibaca oleh |
+|---|---|---|
+| `ynshop_last_view_mode` | `switchToViewMode()` (js/ui.js) — setiap ganti mode customer/admin | `wantsAdminDashboard()` & pemulihan view customer (js/main.js) |
+| `ynshop_last_customer_view` | `navigateTo()` (js/ui.js) — hanya untuk view yang aman dipulihkan | `bootstrapApp()` (js/main.js) |
+| `ynshop_last_admin_tab` | `switchAdminTab()` (js/admin.js) | `resumePendingAdminDashboard()` (js/main.js) |
+
+**Yang dipulihkan otomatis setelah refresh:**
+- Mode Panel Admin (kalau terakhir kali admin sedang di Dashboard) — termasuk
+  **tab admin yang sedang dibuka** (Dashboard/Transaksi/Produk/Pengaturan/
+  Laporan/Users/Login Logs), bukan selalu balik ke tab "Dashboard".
+- Halaman customer terakhir: Beranda, Tentang Kami, Cara Order, Produk,
+  Promo, Profil Saya.
+
+**Yang SENGAJA TIDAK dipulihkan** (fallback ke Beranda seperti sebelumnya):
+- `checkout` — karena isi keranjang (`state.cart`) hanya ada di memori dan
+  ikut kosong setiap refresh; memulihkan ke halaman ini akan menampilkan
+  form checkout kosong yang membingungkan.
+- `payment` & `order-tracker` — keduanya butuh konteks pesanan aktif
+  (`state.currentOrderPayment`) yang juga hanya ada di memori.
+
+**Dibersihkan otomatis saat logout** (`js/auth/core.js`, jalur mana pun:
+tombol Logout, sesi berakhir, maupun akun dinonaktifkan) — supaya sesi
+berikutnya di tab yang sama (user lain login, atau kembali sebagai guest)
+tidak "mewarisi" posisi halaman atau mode Panel Admin milik user sebelumnya.
+
+## Berkas yang diubah
+- `js/ui.js` — `navigateTo()` & `switchToViewMode()` menyimpan posisi ke
+  sessionStorage; fungsi helper `persistNav`/`readNav`/`clearPersistedNav`
+  (exported untuk dipakai modul lain).
+- `js/admin.js` — `switchAdminTab()` menyimpan tab admin terakhir.
+- `js/main.js` — `wantsAdminDashboard()` diperluas membaca penanda mode
+  admin yang persisten (bukan cuma penanda sekali pakai); `bootstrapApp()`
+  memulihkan tab admin & halaman customer terakhir.
+- `js/auth/core.js` — membersihkan semua penanda navigasi saat logout.
+
+## Yang TIDAK diubah
+- Arsitektur routing tetap sama (bukan hash-router / History API baru) —
+  murni menambah "ingatan" posisi terakhir di atas mekanisme
+  `navigateTo()`/`switchToViewMode()`/`switchAdminTab()` yang sudah ada.

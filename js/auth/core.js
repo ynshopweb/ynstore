@@ -421,6 +421,17 @@ onAuthStateChanged(auth, async (user) => {
         state.userProfile = null;
         syncAuthHeaderUI();
 
+        // Bersihkan penanda "halaman/mode terakhir" (lihat js/ui.js &
+        // js/main.js) supaya sesi berikutnya di tab/browser yang sama
+        // (user lain login, atau kembali sebagai guest) tidak ikut
+        // "mewarisi" posisi halaman atau mode Panel Admin milik user
+        // sebelumnya. typeof-guard karena window.clearPersistedNav hanya
+        // didefinisikan di halaman yang memuat js/ui.js (index.html &
+        // login.html) — TIDAK ada di admin-login.html.
+        if (typeof window.clearPersistedNav === 'function') {
+            window.clearPersistedNav();
+        }
+
         // --- DETEKSI SESI BERAKHIR TANPA SEBAB EKSPLISIT ---
         // Hanya dipertimbangkan jika sebelumnya user memang sedang login
         // (hadSession), DAN bukan karena klik Logout, DAN bukan karena

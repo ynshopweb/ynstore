@@ -31,6 +31,7 @@ import './reports.js';
 import './auth/login-logs.js';
 import { setupUsersSnapshot } from './users-admin.js';
 import { isValidAdminProfile, syncAuthHeaderUI } from './auth/core.js';
+import { NAV_STORAGE_KEYS, readNav } from './ui.js';
 import { state } from './state.js';
 import { auth, db, appId } from './config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -96,6 +97,21 @@ function resumePendingCheckoutRedirect() {
 // role/status TETAP dilakukan ulang di sini lewat Firestore (bukan
 // hanya percaya penanda sessionStorage/hash), supaya Dashboard Admin
 // tidak bisa dibuka hanya dengan mengubah URL/flag dari console. ---
+//
+// ================= PERTAHANKAN HALAMAN TERAKHIR SETELAH REFRESH =================
+// Sebelumnya fungsi ini HANYA aktif lewat penanda SEKALI PAKAI
+// ('ynshop_open_admin_dashboard', dibuat oleh admin-login.html, langsung
+// dihapus setelah dibaca) atau hash '#admin'. Akibatnya: begitu admin
+// sudah masuk ke Dashboard dan lalu me-refresh browser (F5/Cmd+R/Ctrl+R)
+// TANPA hash '#admin' di URL, penanda sekali-pakai itu sudah terpakai
+// sebelumnya, wantsAdminDashboard() langsung `return false`, dan admin
+// terlempar balik ke tampilan customer ('home') — padahal sesi login
+// & role admin-nya masih sah sepenuhnya. Sekarang ditambahkan penanda
+// KEDUA yang TIDAK sekali-pakai: NAV_STORAGE_KEYS.viewMode, diisi setiap
+// kali switchToViewMode() dipanggil (lihat js/ui.js) dan HANYA dihapus
+// saat logout (lihat js/auth/core.js). Refresh browser sekarang akan
+// tetap mendeteksi "terakhir kali berada di Panel Admin" dan mencoba
+// membuka kembali Dashboard Admin di tab/subview yang sama.
 function wantsAdminDashboard() {
     let flagged = false;
     try { flagged = sessionStorage.getItem('ynshop_open_admin_dashboard') === '1'; } catch (_) { /* ignore */ }
@@ -106,7 +122,10 @@ function wantsAdminDashboard() {
         // Bersihkan hash supaya tidak terpicu berulang saat reload/back.
         history.replaceState(null, '', window.location.pathname + window.location.search);
     }
-    return flagged || hashWantsAdmin;
+
+    const wasInAdminMode = readNav(NAV_STORAGE_KEYS.viewMode) === 'admin';
+
+    return flagged || hashWantsAdmin || wasInAdminMode;
 }
 
 function resumePendingAdminDashboard() {
@@ -153,6 +172,14 @@ function resumePendingAdminDashboard() {
                 state.user = user;
                 state.userProfile = profileData;
                 window.switchToViewMode('admin');
+
+                // Pulihkan tab admin terakhir (Dashboard/Transaksi/Produk/dst),
+                // bukan selalu jatuh ke tab "Dashboard" — bagian dari
+                // "pertahankan halaman terakhir setelah refresh".
+                const savedTab = readNav(NAV_STORAGE_KEYS.adminTab);
+                if (savedTab && typeof window.switchAdminTab === 'function') {
+                    window.switchAdminTab(savedTab);
+                }
             } else if (typeof window.showToast === 'function') {
                 window.showToast('Akses ditolak. Anda tidak memiliki izin sebagai Admin.', 'error');
             }
@@ -195,6 +222,24 @@ async function bootstrapApp() {
 
     resumePendingCheckoutRedirect();
     resumePendingAdminDashboard();
+
+    // ================= PERTAHANKAN HALAMAN TERAKHIR SETELAH REFRESH =================
+    // Kalau sebelumnya sedang di Panel Admin, resumePendingAdminDashboard()
+    // di atas sudah menanganinya (termasuk memulihkan tab admin terakhir).
+    // Selain itu, pulihkan halaman CUSTOMER terakhir (Produk, Tentang Kami,
+    // Profil Saya, dst) supaya refresh browser tidak selalu melempar balik
+    // ke Beranda. Sengaja TIDAK memulihkan 'checkout'/'payment'/
+    // 'order-tracker' — lihat penjelasan RESTORABLE_CUSTOMER_VIEWS di
+    // js/ui.js. navigateTo() sendiri sudah menangani guard login kalau
+    // halaman yang tersimpan ternyata butuh login (mis. 'customer-profile'
+    // setelah sesi berakhir) dengan menampilkan modal "Login Diperlukan".
+    const wasInAdminMode = readNav(NAV_STORAGE_KEYS.viewMode) === 'admin';
+    if (!wasInAdminMode) {
+        const savedView = readNav(NAV_STORAGE_KEYS.customerView);
+        if (savedView && savedView !== 'home' && typeof window.navigateTo === 'function') {
+            window.navigateTo(savedView);
+        }
+    }
 }
 
 window.addEventListener('DOMContentLoaded', bootstrapApp);

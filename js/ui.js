@@ -33,6 +33,38 @@ window.showToast = function(message, type = 'success') {
 // dan Keranjang (drawer) tanpa batasan.
 const GUEST_RESTRICTED_VIEWS = ['checkout', 'payment', 'customer-profile', 'order-tracker'];
 
+// ================= PERTAHANKAN HALAMAN TERAKHIR SETELAH REFRESH =================
+// Hanya view yang "berdiri sendiri" (tidak butuh data sementara di memori)
+// yang aman untuk dipulihkan langsung setelah refresh. 'checkout' butuh
+// isi keranjang, dan 'payment'/'order-tracker' butuh konteks pesanan aktif
+// (state.currentOrderPayment) — semua itu HANYA ada di memori JS dan ikut
+// hilang setiap refresh, jadi kalau dipulihkan begitu saja user akan
+// melihat halaman kosong/rusak. Ketiganya sengaja TIDAK dipulihkan;
+// refresh dari halaman itu akan jatuh ke 'home' seperti biasa.
+const RESTORABLE_CUSTOMER_VIEWS = ['home', 'about', 'how-to-order', 'products', 'promo', 'customer-profile'];
+const NAV_STORAGE_KEYS = {
+    viewMode: 'ynshop_last_view_mode',       // 'customer' | 'admin'
+    customerView: 'ynshop_last_customer_view',
+    adminTab: 'ynshop_last_admin_tab'
+};
+export { NAV_STORAGE_KEYS };
+
+function persistNav(key, value) {
+    try { sessionStorage.setItem(key, value); } catch (_) { /* ignore (mis. private mode) */ }
+}
+function readNav(key) {
+    try { return sessionStorage.getItem(key); } catch (_) { return null; }
+}
+export { readNav, persistNav };
+// Dipanggil saat logout (lihat js/auth/core.js) supaya sesi berikutnya
+// (user lain / guest) tidak "mewarisi" posisi halaman & mode admin milik
+// user sebelumnya.
+window.clearPersistedNav = function() {
+    try {
+        Object.values(NAV_STORAGE_KEYS).forEach(k => sessionStorage.removeItem(k));
+    } catch (_) { /* ignore */ }
+};
+
 window.navigateTo = function(viewId) {
     // --- GUARD: proteksi akses langsung ke halaman yang butuh login ---
     // Berlaku baik dipanggil lewat tombol/menu maupun langsung dari console/URL.
@@ -56,6 +88,12 @@ window.navigateTo = function(viewId) {
     if (target) {
         target.classList.remove('hidden');
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Simpan halaman ini sebagai "halaman terakhir" supaya bisa dipulihkan
+    // kalau browser di-refresh (lihat bootstrapApp() di js/main.js).
+    if (RESTORABLE_CUSTOMER_VIEWS.includes(viewId)) {
+        persistNav(NAV_STORAGE_KEYS.customerView, viewId);
     }
 };
 
@@ -91,6 +129,11 @@ window.switchToViewMode = function(mode) {
     // separuh customer separuh admin). Sekarang aman: kalau partials
     // belum siap, cukup keluar dan tidak melakukan apa-apa.
     if (!customerMain || !adminMain) return;
+
+    // Simpan mode ini sebagai "mode terakhir" supaya bisa dipulihkan kalau
+    // browser di-refresh saat sedang berada di Panel Admin (lihat
+    // wantsAdminDashboard() di js/main.js).
+    persistNav(NAV_STORAGE_KEYS.viewMode, mode);
 
     if (mode === 'admin') {
         if (customerHeader) customerHeader.classList.add('hidden');
